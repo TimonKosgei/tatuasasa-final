@@ -15,7 +15,7 @@ export default function PageHero({ eyebrow, title, description, mockup }) {
         </p>
         <div className="mt-6 flex gap-3">
           <Link
-            to="/get-started"
+            to="/auth/signup"
             className="border border-[var(--color-ink)] bg-[var(--color-ink)] px-6 py-3 text-[13px] font-semibold text-[var(--color-bg)] transition-colors hover:bg-[var(--color-bg)] hover:text-[var(--color-ink)]"
           >
             Try for free

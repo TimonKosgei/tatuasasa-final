@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 
 const roles = [
   {
@@ -10,6 +11,7 @@ const roles = [
       "Track exactly where your ticket stands, live.",
       "Get notified the moment it's resolved — no chasing.",
     ],
+    to: "/dashboard/staff",
   },
   {
     key: "technician",
@@ -20,6 +22,7 @@ const roles = [
       "Pull up full ticket history in one click.",
       "Resolve, log, and close without leaving the dashboard.",
     ],
+    to: "/dashboard/technician",
   },
   {
     key: "supervisor",
@@ -30,6 +33,7 @@ const roles = [
       "Reassign workload the moment someone's overloaded.",
       "Catch bottlenecks before they become backlogs.",
     ],
+    to: "/dashboard/supervisor",
   },
 ];
 
@@ -78,6 +82,12 @@ export default function RolesSection() {
               </li>
             ))}
           </ul>
+          <Link
+            to={current.to}
+            className="mt-6 inline-block text-[14px] font-semibold underline underline-offset-4 transition-opacity hover:opacity-60"
+          >
+            Open {current.label.toLowerCase()} dashboard →
+          </Link>
         </div>
       </div>
     </section>

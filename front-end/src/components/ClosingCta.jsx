@@ -7,7 +7,7 @@ export default function ClosingCta() {
         Ready to simplify your support desk?
       </h2>
       <Link
-        to="/get-started"
+        to="/auth/signup"
         className="mt-5 inline-block bg-[var(--color-invert-ink)] px-7 py-3.5 text-[14px] font-semibold text-[var(--color-invert-bg)] transition-opacity hover:opacity-90"
       >
         Try for free
