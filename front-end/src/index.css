@@ -1,0 +1,44 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap");
+@import "tailwindcss";
+/* LIGHT MODE (Default) */
+:root {
+  --bg-page: #f4f7f6;
+  --bg-card: #ffffff;
+  --text-main: #333333;
+  --text-muted: #555555;
+  --border-color: #eeeeee;
+  --border-input: #c2bebe;
+  
+  --brand-text: #064732; 
+  --brand-bg: #064732;   
+  
+  --sidebar-hover: #f4f7f6;
+  --sidebar-active: #e6f0ec;
+  --input-bg: #ffffff;
+}
+
+/* DARK MODE - The "True Black" Edition */
+:root[data-theme="dark"] {
+  --bg-page: #09090b;       /* Deep pitch black for the background */
+  --bg-card: #18181b;       /* Elevated charcoal for cards */
+  --text-main: #f4f4f5;     /* Crisp white text for readability */
+  --text-muted: #a1a1aa;    /* Soft gray for secondary text */
+  --border-color: #27272a;  /* Subtle, dark borders */
+  --border-input: #3f3f46;  /* Slightly lighter borders for inputs */
+  
+  --brand-text: #4ade80;    /* Bright green for readable accents */
+  --brand-bg: #064732;      /* Keep buttons deep green */
+  
+  --sidebar-hover: #27272a;
+  --sidebar-active: #3f3f46;
+  --input-bg: #09090b;      /* Inputs sink into the page */
+}
+
+/* Apply smooth transitions globally */
+body {
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}

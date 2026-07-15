@@ -1,0 +1,305 @@
+/* staff-settingspanel.css */
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 30px;
+  align-items: start;
+  margin-top: 15px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- SIDEBAR MENU --- */
+.settings-sidebar {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 15px 0;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.sidebar-menu-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 20px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  border-left: 4px solid transparent; 
+}
+
+.sidebar-menu-btn:hover {
+  background: var(--sidebar-hover);
+  color: var(--brand-text);
+}
+
+.sidebar-menu-btn.active {
+  background: var(--sidebar-active);
+  color: var(--brand-text);
+  border-left-color: var(--brand-text);
+  font-weight: 600;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 10px 0;
+}
+
+/* --- CONTENT AREA --- */
+.settings-content-area {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 30px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  min-height: 400px;
+}
+
+.settings-content-area h3 {
+  color: var(--brand-text);
+  font-size: 20px;
+  margin-top: 0;
+  margin-bottom: 25px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+/* Forms & Inputs */
+.settings-form-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.settings-form-group input,
+.settings-form-group select {
+  padding: 12px;
+  background-color: var(--input-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-input);
+  border-radius: 4px;
+  font-size: 15px;
+  transition: border-color 0.2s;
+}
+
+.settings-form-group input:focus,
+.settings-form-group select:focus {
+  outline: none;
+  border-color: var(--brand-text);
+}
+
+.settings-form-group input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Avatar Selector */
+.avatar-selection-container {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap; /* Allows avatars to wrap on tiny screens */
+}
+
+.avatar-option {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background-color: var(--sidebar-hover);
+  transition: all 0.2s;
+}
+
+.avatar-option:hover {
+  transform: scale(1.05);
+}
+
+.avatar-option.selected {
+  border-color: var(--brand-text);
+  background-color: var(--sidebar-active);
+}
+
+/* Action Buttons */
+.btn-save {
+  background-color: var(--brand-bg);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  margin-top: 10px;
+}
+
+.btn-save:hover {
+  opacity: 0.9;
+}
+
+.btn-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--text-main);
+  border: 1px solid var(--border-input);
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  background-color: var(--sidebar-hover);
+  border-color: var(--text-muted);
+}
+
+.btn-danger {
+  background-color: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.btn-danger:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.action-row {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* Feedback Messages */
+.settings-alert {
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.alert-success {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.alert-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Support Links */
+.support-links {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.support-links a {
+  color: var(--brand-text);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.support-links a:hover {
+  text-decoration: underline;
+}
+
+.app-info-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border-color);
+}
+
+/* --- MOBILE RESPONSIVENESS --- */
+@media (max-width: 768px) {
+  .settings-layout {
+    grid-template-columns: 1fr; /* Stacks the grid[cite: 16] */
+    gap: 15px; /* Reduces the large 30px gap[cite: 16] */
+  }
+
+  /* Converts the vertical sidebar into a horizontal scrollable menu */
+  .settings-sidebar {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .settings-sidebar::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+
+  .sidebar-menu-btn {
+    display: inline-block;
+    width: auto;
+    padding: 10px 15px;
+    border-left: none; /* Removes left border indicator[cite: 16] */
+    border-bottom: 3px solid transparent; /* Moves indicator to the bottom */
+    text-align: center;
+  }
+
+  .sidebar-menu-btn.active {
+    border-left-color: transparent; /* Resets desktop active state[cite: 16] */
+    border-bottom-color: var(--brand-text);
+  }
+
+  .sidebar-divider {
+    display: none; /* Hides dividers in horizontal mode */
+  }
+
+  .settings-content-area {
+    padding: 20px 15px; /* Reduces the bulky 30px padding[cite: 16] */
+    min-height: auto;
+  }
+
+  .action-row {
+    flex-direction: column; /* Forces action buttons to stack vertically */
+  }
+
+  .btn-outline, 
+  .btn-save, 
+  .btn-danger {
+    width: 100%; /* Ensures buttons are full-width and easily tappable */
+  }
+}

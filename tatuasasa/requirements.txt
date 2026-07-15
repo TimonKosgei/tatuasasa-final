@@ -1,0 +1,11 @@
+google-genai
+supabase
+pydantic
+dotenv
+fastapi
+typing
+openai
+groq
+google
+pydantic[email]
+python-multipart
