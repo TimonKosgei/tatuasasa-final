@@ -1,0 +1,208 @@
+/* staffreport.css */
+
+.reports-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 500px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* --- SELECTION SCREEN --- */
+.report-selection-screen {
+  padding: 40px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.report-selection-screen h2 {
+  color: var(--brand-text);
+  font-size: 1.5rem;
+  margin-bottom: 30px;
+  line-height: 1.4;
+}
+
+.date-form {
+  background: var(--bg-page);
+  padding: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.date-inputs {
+  display: flex;
+  gap: 20px;
+}
+
+@media (max-width: 480px) {
+  .date-inputs {
+    flex-direction: column;
+  }
+}
+
+.date-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  text-align: left;
+}
+
+.date-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.date-group input {
+  padding: 12px;
+  font-size: 15px;
+  border: 1px solid var(--border-input);
+  border-radius: 4px;
+  background-color: var(--input-bg);
+  color: var(--text-main);
+}
+
+.date-group input:focus {
+  outline: none;
+  border-color: var(--brand-text);
+}
+
+/* --- DOCUMENT VIEW SCREEN --- */
+.document-view-container {
+  padding: 30px;
+  background-color: var(--bg-page);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.document-header-actions {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 20px;
+}
+
+.back-btn-report {
+  background: transparent;
+  border: 1px solid var(--border-input);
+  color: var(--text-main);
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.back-btn-report:hover {
+  background: var(--sidebar-hover);
+}
+
+/* The A4 Paper Look */
+.report-document {
+  background: #ffffff; /* Always white like paper */
+  width: 100%;
+  max-width: 800px;
+  min-height: 800px;
+  padding: 50px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  margin-bottom: 30px;
+  color: #333333; /* Always dark text for the document */
+}
+
+.doc-navbar {
+  border-bottom: 2px solid #064732;
+  padding-bottom: 15px;
+  margin-bottom: 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.doc-navbar h1 {
+  color: #064732;
+  margin: 0;
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.doc-dates {
+  font-size: 14px;
+  color: #555555;
+  font-weight: 600;
+}
+
+.doc-section-title {
+  color: #064732;
+  font-size: 18px;
+  margin-top: 30px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 5px;
+}
+
+.doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.doc-table th, .doc-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.doc-table th {
+  background-color: #f8fafc;
+  font-weight: 700;
+  color: #334155;
+}
+
+.doc-table tr:last-child td {
+  border-bottom: none;
+}
+
+.download-pdf-btn {
+  background-color: #064732;
+  color: white;
+  padding: 15px 30px;
+  font-size: 16px;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.download-pdf-btn:hover {
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .report-document {
+    padding: 20px;
+  }
+  .doc-navbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
