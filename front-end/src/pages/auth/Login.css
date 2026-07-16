@@ -8,7 +8,7 @@
   justify-content: center;
   min-height: 100vh;
   padding: 20px;
-  background-color: #f4f7f6; /* Clean, light background */
+  background-color: var(--bg-page); /* Adapts to dark/light mode */
   font-family: system-ui, -apple-system, sans-serif;
 }
 
@@ -16,23 +16,27 @@
 .login-form {
   width: 100%;
   max-width: 400px;
-  background: white;
+  background: var(--bg-card); /* Adapts to dark/light mode */
   padding: 30px;
   border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); /* Softer shadow for light theme */
+  border: 1px solid var(--border-color); /* Adds subtle definition in dark mode */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05); 
 }
 
 /* Typography */
 .login-form h1 {
-  color: #064732; /* The NEW deep forest green */
+  color: var(--brand-text); 
   margin-bottom: 5px;
   text-align: center;
+  font-size: 2.2rem; /* The new, bold SaaS look */
+  font-weight: 800; 
+  letter-spacing: -1px;
 }
 
 .login-form h2 {
   text-align: center;
-  margin-bottom: 20px; /* Adjusted spacing */
-  color: #333;
+  margin-bottom: 20px; 
+  color: var(--text-main); 
 }
 
 /* Input groups */
@@ -45,22 +49,22 @@
 .form-group label {
   margin-bottom: 8px;
   font-weight: 500;
-  color: #555;
+  color: var(--text-muted); 
 }
 
 .form-group input {
   padding: 12px;
   font-size: 16px; 
-  border: 1px solid #c2bebe;
+  border: 1px solid var(--border-input); 
   border-radius: 4px;
   transition: border-color 0.2s;
-  background-color: #ffffff;
-  color: #333333;
+  background-color: var(--input-bg); 
+  color: var(--text-main); 
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #064732; /* Focus matches the new brand green */
+  border-color: var(--brand-text); 
 }
 
 /* Submit Button */
@@ -70,15 +74,20 @@
   font-size: 16px;
   font-weight: bold;
   color: white;
-  background-color: #064732; /* Swapped from red to the new green */
+  background-color: var(--brand-bg); 
   border: none;
   border-radius: 4px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  transition: opacity 0.2s;
 }
 
 .submit-btn:hover {
-  background-color: #0a5c42; /* Slightly lighter green on hover */
+  opacity: 0.9;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Password Toggle */
@@ -102,7 +111,7 @@
   border: none;
   font-size: 18px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-muted); 
   padding: 0;
   display: flex;
   align-items: center;
@@ -119,7 +128,7 @@
   align-items: center;
   text-align: center;
   margin: 15px 0;
-  color: #888;
+  color: var(--text-muted); 
   font-size: 14px;
 }
 
@@ -127,7 +136,7 @@
 .divider::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--border-color); 
 }
 
 .divider span {
@@ -143,18 +152,18 @@
   padding: 12px;
   font-size: 16px;
   font-weight: 500;
-  color: #333;
-  background-color: #fff;
-  border: 1px solid #ccc;
+  color: var(--text-main); 
+  background-color: transparent; 
+  border: 1px solid var(--border-input); 
   border-radius: 4px;
   cursor: pointer;
   margin-bottom: 15px; 
-  transition: background-color 0.2s, box-shadow 0.2s;
+  transition: all 0.2s;
 }
 
 .google-btn:hover {
-  background-color: #f8f9fa;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  background-color: var(--sidebar-hover); 
+  border-color: var(--text-muted);
 }
 
 /* Helper Links */
@@ -162,7 +171,7 @@
   margin-top: 25px; 
   text-align: center;
   font-size: 14px;
-  color: #666;
+  color: var(--text-muted); 
   display: flex;
   flex-direction: column;
   gap: 12px; 
@@ -173,7 +182,7 @@
 }
 
 .auth-links .link {
-  color: #064732; /* Links now match the new green */
+  color: var(--brand-text); 
   text-decoration: none;
   font-weight: 600; 
   transition: text-decoration 0.2s;
@@ -181,4 +190,49 @@
 
 .auth-links .link:hover {
   text-decoration: underline;
+}
+
+/* Dynamic Feedback Alerts */
+.login-alert {
+  padding: 12px;
+  border-radius: 4px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.alert-success {
+  background-color: rgba(34, 197, 94, 0.1);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.alert-error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 480px) {
+  .login-form h1 {
+    font-size: 1.75rem; /* Scales the logo down slightly for mobile */
+  }
+}
+
+.brand-logo {
+  color: var(--brand-text) !important; 
+  margin-bottom: 10px !important;
+  text-align: center;
+  font-size: 2.5rem !important; /* Enforces the large size */
+  font-weight: 900 !important;  /* Extra thick */
+  letter-spacing: -1.5px !important; /* Tight, modern tech logo look */
+}
+
+/* Mobile scaling for the new class */
+@media (max-width: 480px) {
+  .brand-logo {
+    font-size: 1.8rem !important; 
+  }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { signIn, resendVerification } from '../../config/auth'; // Added required auth logic imports
+import { signIn, resendVerification } from '../../config/auth'; 
 import { supabase } from '../../config/SupabaseClient';
 import './login.css';
 
@@ -10,7 +10,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   
-  // State for Feedback Mechanisms
   const [error, setError] = useState(null); 
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -40,7 +39,6 @@ export default function Login() {
         default: navigate('/');
       }
     } catch (err) {
-      // Clean and secure feedback mapping
       if (err.message === "EMAIL_NOT_CONFIRMED") {
         setError(
           <span>
@@ -55,7 +53,6 @@ export default function Login() {
           </span>
         );
       } else {
-        // Handles both wrong password and missing email safely
         setError("Invalid email or password. Please try again.");
       }
     } finally {
@@ -82,23 +79,19 @@ export default function Login() {
 
   return (
     <div className="login-container">
-      <form 
-        className="login-form" 
-        onSubmit={handleLogin}
-      >
-        <h1>Tatua Sasa</h1>
+      <form className="login-form" onSubmit={handleLogin}>
+        <h1 className="brand-logo">Tatua Sasa</h1>
         <h2>Login to your Account</h2>
         
-        {/* Visual error container feedback */}
+        {/* Dynamic Alert Containers */}
         {error && (
-          <div style={{ color: '#a40606', backgroundColor: '#ffeaea', padding: '12px', borderRadius: '4px', marginBottom: '20px', textAlign: 'center', fontSize: '14px', border: '1px solid #ffcaca' }}>
+          <div className="login-alert alert-error">
             {error}
           </div>
         )}
         
-        {/* Success State Alert Container */}
         {successMessage && (
-          <div style={{ color: '#057840', backgroundColor: '#e6f4ea', padding: '12px', borderRadius: '4px', marginBottom: '20px', textAlign: 'center', fontSize: '14px', border: '1px solid #bce8cb' }}>
+          <div className="login-alert alert-success">
             {successMessage}
           </div>
         )}
@@ -150,11 +143,7 @@ export default function Login() {
           </div>
         </div>
 
-        <button 
-          type="submit" 
-          className="submit-btn"
-          disabled={loading}
-        >
+        <button type="submit" className="submit-btn" disabled={loading}>
           {loading && (
             <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ display: 'inline-block', marginRight: '8px', verticalAlign: 'middle' }}>
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -168,12 +157,7 @@ export default function Login() {
           <span>or</span>
         </div>
 
-        <button 
-          type="button" 
-          className="google-btn" 
-          onClick={handleGoogleLogin}
-          disabled={loading}
-        >
+        <button type="button" className="google-btn" onClick={handleGoogleLogin} disabled={loading}>
           <svg viewBox="0 0 48 48" width="20" height="20" style={{ marginRight: '8px', verticalAlign: 'middle', display: 'inline-block' }}>
             <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.7 17.74 9.5 24 9.5z"/>
             <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>

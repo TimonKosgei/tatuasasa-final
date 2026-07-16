@@ -68,7 +68,7 @@ export default function SignUp() {
   return (
     <div className="login-container">
       <form className="login-form" onSubmit={handleSignUp}>
-        <h1>Tatua Sasa</h1>
+        <h1 className="brand-logo">Tatua Sasa</h1>
         <h2>Create an Account</h2>
 
         {/* Visual error container feedback */}

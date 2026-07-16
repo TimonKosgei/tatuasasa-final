@@ -1,11 +1,9 @@
-google-genai
+google-generativeai
 supabase
 pydantic
-dotenv
+python-dotenv
 fastapi
-typing
 openai
 groq
-google
 pydantic[email]
 python-multipart

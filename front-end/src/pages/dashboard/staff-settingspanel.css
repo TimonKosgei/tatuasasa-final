@@ -303,3 +303,10 @@
     width: 100%; /* Ensures buttons are full-width and easily tappable */
   }
 }
+
+/* At the very bottom of staff-dashboard.css, below your existing @media block */
+@media (max-width: 480px) {
+  .header-top h1 {
+    font-size: 1.75rem; /* Scales it down slightly just for mobile phones */
+  }
+}
