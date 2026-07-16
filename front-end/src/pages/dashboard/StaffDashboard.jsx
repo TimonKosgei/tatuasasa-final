@@ -3,6 +3,7 @@ import './staff-dashboard.css';
 import { apiFetch } from '../../config/api';
 import StaffSettingsPanel from './StaffSettingsPanel';
 import StaffLive from './StaffLive';
+import StaffReports from './StaffReports';
 
 const CATEGORIES = [
   { value: 'network', label: 'Network & Wi-Fi' },
@@ -286,10 +287,10 @@ export default function StaffDashboard() {
           </div>
         )}
 
+        {/* --- REPORTS TAB --- */}
         {activeTab === 'reports' && (
-          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out', padding: '40px 0', textAlign: 'center' }}>
-            <h2 style={{ color: 'var(--brand-text)' }}>Reports</h2>
-            <p style={{ color: 'var(--text-muted)' }}>Advanced analytics and ticket reporting will be displayed here.</p>
+          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+            <StaffReports tickets={tickets} />
           </div>
         )}
 
