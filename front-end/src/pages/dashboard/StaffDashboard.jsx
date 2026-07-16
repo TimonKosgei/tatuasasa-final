@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import './staff-dashboard.css';
 import { apiFetch } from '../../config/api';
 import StaffSettingsPanel from './StaffSettingsPanel';
+import StaffLive from './StaffLive';
 
 const CATEGORIES = [
   { value: 'network', label: 'Network & Wi-Fi' },
@@ -278,10 +279,10 @@ export default function StaffDashboard() {
           </div>
         )}
 
+        {/* --- LIVE COMMUNICATION INJECTION --- */}
         {activeTab === 'live_comm' && (
-          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out', padding: '40px 0', textAlign: 'center' }}>
-            <h2 style={{ color: 'var(--brand-text)' }}>Live Communication</h2>
-            <p style={{ color: 'var(--text-muted)' }}>Real-time chat and communication tools will be integrated here.</p>
+          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+            <StaffLive />
           </div>
         )}
 
