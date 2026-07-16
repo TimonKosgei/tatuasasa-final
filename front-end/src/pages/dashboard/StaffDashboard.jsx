@@ -19,11 +19,9 @@ const PRIORITIES = [
 ];
 
 export default function StaffDashboard() {
-  // --- Navigation State ---
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // --- Dashboard State ---
   const [showForm, setShowForm] = useState(false);
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -74,7 +72,6 @@ export default function StaffDashboard() {
     e.preventDefault();
     setError('');
     setSubmitting(true);
-
     const form = e.target;
 
     try {
@@ -105,56 +102,85 @@ export default function StaffDashboard() {
     }
   }
 
+  const getTabTitle = () => {
+    switch (activeTab) {
+      case 'dashboard': return 'Dashboard';
+      case 'live_comm': return 'Live Communication';
+      case 'reports': return 'Reports';
+      case 'settings': return 'Settings';
+      default: return 'Dashboard';
+    }
+  };
+
+  const handleNavClick = (tab) => {
+    setActiveTab(tab);
+    setIsMenuOpen(false); 
+  };
+
   return (
     <div className="dashboard-container">
+      
+      {/* --- RIGHT SLIDE-OUT SIDEBAR --- */}
+      <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
+      <aside className={`app-sidebar ${isMenuOpen ? 'open' : ''}`}>
+        <div className="sidebar-header">
+          <h2>Menu</h2>
+          <button className="close-btn" onClick={() => setIsMenuOpen(false)}>&times;</button>
+        </div>
+        <nav className="sidebar-nav">
+          <button className={`sidebar-nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavClick('dashboard')}>
+            Dashboard
+          </button>
+          <button className={`sidebar-nav-btn ${activeTab === 'live_comm' ? 'active' : ''}`} onClick={() => handleNavClick('live_comm')}>
+            Live Communication
+          </button>
+          <button className={`sidebar-nav-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => handleNavClick('reports')}>
+            Reports
+          </button>
+          <button className={`sidebar-nav-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => handleNavClick('settings')}>
+            Settings
+          </button>
+        </nav>
+      </aside>
+
       <div className="dashboard-card">
 
-        {/* --- Navigation Header --- */}
+        {/* --- THE FIXED HEADER --- */}
         <div className="dashboard-header">
-          <div className="header-top">
-            <h1>Tatua Sasa</h1>
+          
+          {/* LEFT SIDE: Hamburger Menu + Logo */}
+          <div className="header-left">
             <button 
-              className="menu-toggle" 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="Toggle menu"
+              className="hamburger-btn" 
+              onClick={() => setIsMenuOpen(true)}
+              aria-label="Open menu"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="3" y1="12" x2="21" y2="12"></line>
                 <line x1="3" y1="6" x2="21" y2="6"></line>
                 <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
+            
+            <h1 className="brand-logo">Tatua Sasa</h1>
           </div>
 
-          <nav className={`header-nav ${isMenuOpen ? 'open' : ''}`}>
-            <button 
-              className={`nav-tab ${activeTab === 'dashboard' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('dashboard'); setIsMenuOpen(false); }}
-            >
-              Dashboard
-            </button>
-            <button 
-              className={`nav-tab ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('settings'); setIsMenuOpen(false); }}
-            >
-              Settings
-            </button>
-          </nav>
+          {/* RIGHT SIDE: Just the Tab Name */}
+          <div className="header-right">
+            <p className="tab-indicator">{getTabTitle()}</p>
+          </div>
+
         </div>
-        {/* ------------------------------- */}
 
         {error && !showForm && (
-          <p className="error-text" style={{ color: '#A13333', marginBottom: '12px' }}>{error}</p>
+          <p className="error-text" style={{ color: '#ef4444', marginBottom: '12px' }}>{error}</p>
         )}
 
         {/* --- VIEW ROUTING --- */}
         {activeTab === 'dashboard' && (
-          <div className="tab-content">
+          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-              <button
-                className="primary-btn"
-                onClick={() => { setError(''); setShowForm(!showForm); }}
-              >
+              <button className="primary-btn" onClick={() => { setError(''); setShowForm(!showForm); }}>
                 {showForm ? "Cancel" : "+ Raise New Ticket"}
               </button>
             </div>
@@ -180,25 +206,13 @@ export default function StaffDashboard() {
                 <div className="table-responsive">
                   <table className="ticket-table">
                     <thead>
-                      <tr>
-                        <th>Subject</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                      </tr>
+                      <tr><th>Subject</th><th>Date</th><th>Status</th></tr>
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr>
-                          <td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: '#888' }}>
-                            Loading your tickets…
-                          </td>
-                        </tr>
+                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>Loading your tickets…</td></tr>
                       ) : tickets.length === 0 ? (
-                        <tr>
-                          <td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: '#888' }}>
-                            You have no active tickets. Click "+ Raise New Ticket" to report an issue.
-                          </td>
-                        </tr>
+                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>You have no active tickets. Click "+ Raise New Ticket" to report an issue.</td></tr>
                       ) : (
                         tickets.map((ticket) => (
                           <tr key={ticket.id}>
@@ -219,83 +233,43 @@ export default function StaffDashboard() {
             ) : (
               <form className="ticket-form" onSubmit={handleSubmitTicket}>
                 <h2>Raise a New Ticket</h2>
-
                 <div className="form-group" style={{ marginBottom: '15px' }}>
                   <label htmlFor="subject">Ticket Subject</label>
                   <input type="text" id="subject" name="subject" placeholder="e.g., Internet is down" required />
-                  <span className="help-text">Please keep this to a short, understandable statement.</span>
                 </div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="category">Category</label>
                     <select id="category" name="category" required defaultValue="">
                       <option value="" disabled>Select a category...</option>
-                      {CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
+                      {CATEGORIES.map((c) => (<option key={c.value} value={c.value}>{c.label}</option>))}
                     </select>
                   </div>
                   <div className="form-group">
                     <label htmlFor="priority">Priority</label>
                     <select id="priority" name="priority" required defaultValue="medium">
-                      {PRIORITIES.map((p) => (
-                        <option key={p.value} value={p.value}>{p.label}</option>
-                      ))}
+                      {PRIORITIES.map((p) => (<option key={p.value} value={p.value}>{p.label}</option>))}
                     </select>
                   </div>
                 </div>
-
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="building">Building</label>
-                    <input
-                      type="text"
-                      id="building"
-                      name="building"
-                      value={building}
-                      onChange={(e) => setBuilding(e.target.value)}
-                      placeholder="e.g. Nairobi Regional Office"
-                      required
-                    />
+                    <input type="text" id="building" name="building" value={building} onChange={(e) => setBuilding(e.target.value)} required />
                   </div>
                   <div className="form-group">
                     <label htmlFor="floor">Floor</label>
-                    <input
-                      type="text"
-                      id="floor"
-                      name="floor"
-                      value={floor}
-                      onChange={(e) => setFloor(e.target.value)}
-                      placeholder="e.g. 3rd Floor"
-                    />
+                    <input type="text" id="floor" name="floor" value={floor} onChange={(e) => setFloor(e.target.value)} />
                   </div>
                   <div className="form-group">
                     <label htmlFor="room">Room</label>
-                    <input
-                      type="text"
-                      id="room"
-                      name="room"
-                      value={room}
-                      onChange={(e) => setRoom(e.target.value)}
-                      placeholder="e.g. KZ-Accounts"
-                      required
-                    />
+                    <input type="text" id="room" name="room" value={room} onChange={(e) => setRoom(e.target.value)} required />
                   </div>
                 </div>
-                {office && (
-                  <span className="help-text" style={{ display: 'block', marginTop: '-10px', marginBottom: '15px' }}>
-                    Prefilled from your profile — edit if you're reporting this from somewhere else.
-                  </span>
-                )}
-
                 <div className="form-group" style={{ marginBottom: '15px' }}>
                   <label htmlFor="description">Detailed Description</label>
-                  <textarea id="description" name="description" rows="4" placeholder="Explain what is happening..." required></textarea>
+                  <textarea id="description" name="description" rows="4" required></textarea>
                 </div>
-
-                {error && <p className="error-text" style={{ color: '#A13333', marginBottom: '15px' }}>{error}</p>}
-
                 <button type="submit" className="primary-btn" style={{ width: '100%' }} disabled={submitting}>
                   {submitting ? 'Submitting…' : 'Submit Ticket'}
                 </button>
@@ -304,10 +278,23 @@ export default function StaffDashboard() {
           </div>
         )}
 
-        {/* --- SETTINGS TAB --- */}
+        {activeTab === 'live_comm' && (
+          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out', padding: '40px 0', textAlign: 'center' }}>
+            <h2 style={{ color: 'var(--brand-text)' }}>Live Communication</h2>
+            <p style={{ color: 'var(--text-muted)' }}>Real-time chat and communication tools will be integrated here.</p>
+          </div>
+        )}
+
+        {activeTab === 'reports' && (
+          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out', padding: '40px 0', textAlign: 'center' }}>
+            <h2 style={{ color: 'var(--brand-text)' }}>Reports</h2>
+            <p style={{ color: 'var(--text-muted)' }}>Advanced analytics and ticket reporting will be displayed here.</p>
+          </div>
+        )}
+
         {activeTab === 'settings' && (
-          <div className="tab-content">
-            <StaffSettingsPanel />
+          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+            <StaffSettingsPanel tickets={tickets} />
           </div>
         )}
 
