@@ -21,73 +21,161 @@
   box-sizing: border-box;
 }
 
-/* Responsive Header Navigation */
+/* --- Dynamic Header Navigation --- */
 .dashboard-header {
   display: flex;
-  flex-direction: column; 
+  justify-content: space-between;
+  align-items: center;
   border-bottom: 1px solid var(--border-color);
   padding-bottom: 20px;
   margin-bottom: 20px;
 }
 
-.header-top {
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px; /* Spaces the Hamburger and Logo */
+}
+
+/* Bulletproof Logo Styles */
+.brand-logo {
+  color: var(--brand-text) !important; 
+  margin: 0 !important;
+  font-size: 2.2rem !important;
+  font-weight: 800 !important; 
+  letter-spacing: -1px !important;
+}
+
+.hamburger-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  cursor: pointer;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s ease;
+  border-radius: 4px;
+}
+
+.hamburger-btn:hover {
+  color: var(--brand-text);
+  background-color: var(--sidebar-hover);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+}
+
+.tab-indicator {
+  font-size: 1.6rem; 
+  color: var(--text-muted);
+  font-family: 'Georgia', serif; 
+  font-style: italic;
+  margin: 0;
+}
+
+/* --- Slide-Out Sidebar & Overlay --- */
+.sidebar-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.sidebar-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.app-sidebar {
+  position: fixed;
+  top: 0;
+  left: 0; /* Anchors the menu to the LEFT side */
+  width: 280px;
+  height: 100vh;
+  background-color: var(--bg-card);
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1); /* Flips the shadow to the right */
+  z-index: 999;
+  padding: 20px;
+  transform: translateX(-100%); /* Hides it off-screen to the LEFT */
+  transition: transform 0.3s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-sidebar.open {
+  transform: translateX(0); /* Slides in from the left */
+}
+
+.sidebar-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  width: 100%;
-
+  margin-bottom: 30px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.header-top h1 {
-  color: var(--brand-text); 
+.sidebar-header h2 {
   margin: 0;
-  font-size: 2.2rem;
-  font-weight: 700;
-  letter-spacing: -1px;
+  font-size: 1.2rem;
+  color: var(--text-main);
 }
 
-.menu-toggle {
-  display: block; 
+.close-btn {
   background: none;
   border: none;
-  color: var(--brand-text);
+  color: var(--text-muted);
+  font-size: 24px;
   cursor: pointer;
-  padding: 5px;
+  transition: color 0.2s;
 }
 
-.header-nav {
-  display: none; 
+.close-btn:hover {
+  color: #ef4444;
+}
+
+.sidebar-nav {
+  display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 15px;
-  width: 100%;
 }
 
-.header-nav.open {
-  display: flex;
-}
-
-.nav-tab {
-  background: none;
+.sidebar-nav-btn {
+  background: transparent;
   border: none;
-  padding: 10px 15px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
   text-align: left;
-  border-radius: 4px;
+  padding: 15px 20px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-main);
+  border-radius: 6px;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.nav-tab:hover {
-  background: var(--sidebar-hover);
+.sidebar-nav-btn:hover {
+  background-color: var(--sidebar-hover);
+  color: var(--brand-text);
 }
 
-.nav-tab.active {
+.sidebar-nav-btn.active {
+  background-color: var(--sidebar-active);
   color: var(--brand-text);
-  background: var(--sidebar-active);
+  font-weight: 700;
+  border-left: 4px solid var(--brand-text);
 }
+/* ------------------------------------------- */
 
 /* Primary Button */
 .primary-btn {
@@ -236,33 +324,13 @@
   margin-top: 4px;
 }
 
-/* Media Queries for Tablet & Desktop */
+/* Desktop Styles */
 @media (min-width: 768px) {
   .dashboard-container {
     padding: 40px 20px;
   }
   .dashboard-card {
     padding: 30px;
-  }
-  .dashboard-header {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-  }
-  .dashboard-header h1 {
-    text-align: left;
-  }
-  .header-top {
-    width: auto;
-  }
-  .menu-toggle {
-    display: none; 
-  }
-  .header-nav {
-    display: flex;
-    flex-direction: row;
-    width: auto;
-    margin-top: 0;
   }
   .primary-btn {
     width: auto; 
@@ -275,9 +343,16 @@
     flex-direction: row;
   }
 }
-/* At the very bottom of staff-dashboard.css, below your existing @media block */
+
+/* Mobile Friendly Adjustments */
 @media (max-width: 480px) {
-  .header-top h1 {
-    font-size: 1.75rem; /* Scales it down slightly just for mobile phones */
+  .brand-logo {
+    font-size: 1.6rem !important; 
+  }
+  .header-left {
+    gap: 8px; 
+  }
+  .tab-indicator {
+    font-size: 1.2rem; 
   }
 }
