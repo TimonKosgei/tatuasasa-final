@@ -11,6 +11,7 @@ from supabase_client import supabase, supabase_admin
 # Import our custom matching and timeout engine
 from services.matching import auto_assign_ticket_to_best_tech
 
+
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 VALID_CATEGORIES = {"hardware", "network", "software", "printers", "security"}
@@ -307,3 +308,77 @@ async def manual_assign(
     )
 
     return {"message": "Ticket reassigned and 3-minute monitoring timer configured."}
+
+
+
+
+
+MAX_MESSAGE_LENGTH = 2000
+
+
+class MessageCreate(BaseModel):
+    body: str
+
+    @field_validator("body")
+    @classmethod
+    def body_not_blank(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Message cannot be empty")
+        if len(v) > MAX_MESSAGE_LENGTH:
+            raise ValueError(f"Message cannot exceed {MAX_MESSAGE_LENGTH} characters")
+        return v
+
+
+def _check_participant(ticket_id: int, current_user) -> dict:
+    """Fetch the ticket and confirm the current user is the submitter or assignee.
+    Returns the ticket row so callers don't have to fetch it twice."""
+    ticket = supabase_admin.table("tickets").select("*").eq("id", ticket_id).single().execute()
+    if not ticket.data:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    is_owner = ticket.data["submitted_by"] == current_user["id"]
+    is_assignee = ticket.data["assigned_to"] == current_user["id"]
+    if not (is_owner or is_assignee):
+        raise HTTPException(status_code=403, detail="You don't have access to this ticket's messages")
+
+    return ticket.data
+
+
+@router.get("/{ticket_id}/messages")
+def list_messages(ticket_id: int, current_user=Depends(get_current_user)):
+    _check_participant(ticket_id, current_user)
+
+    result = (
+        supabase_admin.table("ticket_messages")
+        .select("*")
+        .eq("ticket_id", ticket_id)
+        .order("created_at", desc=False)
+        .execute()
+    )
+    return result.data
+
+
+@router.post("/{ticket_id}/messages")
+def send_message(ticket_id: int, payload: MessageCreate, current_user=Depends(get_current_user)):
+    ticket = _check_participant(ticket_id, current_user)
+
+    # Optional: block messaging on closed/resolved tickets
+    if ticket["status"] in ("resolved", "closed"):
+        raise HTTPException(status_code=400, detail="Cannot send messages on a resolved or closed ticket")
+
+    role = current_user["profile"]["role"]
+    sender_role = "technician" if role == "technician" else "staff"
+
+    message_row = {
+        "ticket_id": ticket_id,
+        "sender_id": current_user["id"],
+        "sender_role": sender_role,
+        "body": payload.body,
+    }
+
+    insert_result = supabase_admin.table("ticket_messages").insert(message_row).execute()
+    if not insert_result.data:
+        raise HTTPException(status_code=500, detail="Failed to send message")
+
+    return insert_result.data[0]
