@@ -6,6 +6,7 @@ import AdminUserManagement from './AdminUserManagement';
 import AdminWorkforce from './AdminWorkforce';
 import AdminCatalog from './AdminCatalog';
 import AdminSettings from './AdminSettings';
+import AdminReports from './AdminReports';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
