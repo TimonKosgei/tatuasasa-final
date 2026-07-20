@@ -1,0 +1,129 @@
+/* admin-usermanagement.css */
+
+.admin-users-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.users-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.users-header-row h2 {
+  color: var(--brand-text);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+/* Search and Filter Row */
+.users-controls {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.users-search-input {
+  padding: 10px 15px;
+  font-size: 14px;
+  background-color: var(--input-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+  width: 240px;
+}
+
+.users-search-input:focus {
+  outline: none;
+  border-color: var(--brand-text);
+}
+
+.users-role-select {
+  padding: 10px;
+  font-size: 14px;
+  background-color: var(--input-bg);
+  color: var(--text-main);
+  border: 1px solid var(--border-input);
+  border-radius: 6px;
+}
+
+.users-role-select:focus {
+  outline: none;
+  border-color: var(--brand-text);
+}
+
+/* Users Table */
+.users-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-page);
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 700px;
+}
+
+.users-table th,
+.users-table td {
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.users-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  background-color: var(--bg-card);
+  white-space: nowrap;
+}
+
+.users-table tr:last-child td {
+  border-bottom: none;
+}
+
+.users-table tr:hover td {
+  background-color: var(--sidebar-hover);
+}
+
+/* Role Badges */
+.role-badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.role-staff { background-color: rgba(100, 116, 139, 0.1); color: #64748b; border: 1px solid rgba(100, 116, 139, 0.2); }
+.role-technician { background-color: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); }
+.role-supervisor { background-color: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+.role-admin { background-color: rgba(6, 71, 50, 0.1); color: var(--brand-text); border: 1px solid rgba(6, 71, 50, 0.2); }
+
+/* Rank Promotion Dropdown Actions */
+.rank-action-select {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid var(--border-input);
+  background-color: var(--input-bg);
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.rank-action-select:focus {
+  outline: none;
+  border-color: var(--brand-text);
+}
