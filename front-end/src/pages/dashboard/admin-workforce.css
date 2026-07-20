@@ -1,0 +1,159 @@
+/* admin-workforce.css */
+
+.admin-workforce-container {
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.workforce-header-row h2 {
+  color: var(--brand-text);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+/* Star Spotlight Cards */
+.spotlight-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 20px;
+}
+
+@media (min-width: 768px) {
+  .spotlight-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.spotlight-card {
+  background: var(--bg-page);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+}
+
+.spotlight-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #f59e0b, #10b981);
+}
+
+.spotlight-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.spotlight-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.spotlight-icon {
+  font-size: 20px;
+}
+
+.spotlight-name {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--text-main);
+  margin: 0 0 4px 0;
+}
+
+.spotlight-role {
+  font-size: 13px;
+  color: var(--brand-text);
+  margin-bottom: 15px;
+}
+
+.spotlight-metrics {
+  display: flex;
+  gap: 15px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.metric-item span {
+  display: block;
+}
+
+.metric-value {
+  font-weight: bold;
+  font-size: 16px;
+  color: var(--text-main);
+}
+
+.metric-label {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* Workforce Tables Section */
+.workforce-section-title {
+  font-size: 1.2rem;
+  color: var(--text-main);
+  margin: 10px 0 0 0;
+}
+
+.workforce-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-page);
+}
+
+.workforce-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.workforce-table th,
+.workforce-table td {
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.workforce-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  background-color: var(--bg-card);
+  white-space: nowrap;
+}
+
+.workforce-table tr:last-child td {
+  border-bottom: none;
+}
+
+.workforce-table tr:hover td {
+  background-color: var(--sidebar-hover);
+}
+
+/* Presence Status Dots */
+.presence-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+
+.presence-online { background-color: #10b981; }
+.presence-offline { background-color: #94a3b8; }
+.presence-busy { background-color: #f59e0b; }
