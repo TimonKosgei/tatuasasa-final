@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../config/api';
+import { apiFetch } from '../../config/api';
 import './admin-catalog.css';
 
 export default function AdminCatalog() {
