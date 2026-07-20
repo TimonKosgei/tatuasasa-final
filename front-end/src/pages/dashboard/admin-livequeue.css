@@ -1,0 +1,129 @@
+/* admin-livequeue.css */
+
+.admin-livequeue-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.livequeue-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.livequeue-header-row h2 {
+  color: var(--brand-text);
+  font-size: 1.5rem;
+  margin: 0;
+}
+
+/* Filter Buttons */
+.queue-filters {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  background: var(--bg-page);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: var(--sidebar-hover);
+  color: var(--text-main);
+}
+
+.filter-btn.active {
+  background-color: var(--brand-bg);
+  color: white;
+  border-color: var(--brand-bg);
+}
+
+/* Queue Table Wrapper */
+.queue-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-page);
+}
+
+.queue-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 650px;
+}
+
+.queue-table th,
+.queue-table td {
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 14px;
+  color: var(--text-main);
+}
+
+.queue-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  background-color: var(--bg-card);
+  white-space: nowrap;
+}
+
+.queue-table tr:last-child td {
+  border-bottom: none;
+}
+
+.queue-table tr:hover td {
+  background-color: var(--sidebar-hover);
+}
+
+/* Status Badges */
+.admin-status-badge {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.admin-status-open {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.admin-status-assigned {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.admin-status-in_progress {
+  background-color: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+/* Priority Indicators */
+.priority-indicator {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.priority-urgent { color: #ef4444; }
+.priority-high { color: #f97316; }
+.priority-medium { color: #f59e0b; }
+.priority-low { color: #10b981; }
