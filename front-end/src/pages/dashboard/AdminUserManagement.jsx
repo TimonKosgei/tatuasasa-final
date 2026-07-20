@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiFetch } from '../config/api';
+import { apiFetch } from '../../config/api';
 import './admin-usermanagement.css';
 
 export default function AdminUserManagement() {
