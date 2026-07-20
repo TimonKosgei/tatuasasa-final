@@ -1,6 +1,7 @@
 #pending applications, approve/reject, list my team -Supervisor, Admin
 from fastapi import APIRouter, HTTPException, Depends
 from deps import get_current_user, require_role
+from typing import Optional, List
 from supabase_client import supabase, supabase_admin
 
 router = APIRouter(prefix="/supervisor", tags=["supervisors"])
@@ -62,33 +63,59 @@ def list_pending_applications(current_user=Depends(get_current_user)):
     ]
 
 
-
 @router.get("/technicians", dependencies=[Depends(require_role("supervisor", "admin"))])
 def list_my_technicians(current_user=Depends(get_current_user)):
+    """
+    Returns only the technicians who explicitly report to this supervisor,
+    resolving their email addresses and calculating their active workloads dynamically.
+    """
+    role = current_user["profile"]["role"]
+
+    # 1. Base query for active, approved technicians (removed current_workload and email)
     query = (
         supabase_admin.table("profiles")
-        .select("*")
+        .select("id, full_name, is_online, department, supervisor_id")
         .eq("role", "technician")
         .eq("application_status", "approved")
     )
 
-    if current_user["profile"]["role"] != "admin":
+    # Enforce strict direct reporting line for supervisors
+    if role == "supervisor":
         query = query.eq("supervisor_id", current_user["id"])
 
     result = query.execute()
+    
+    # 2. Fetch all tickets that are currently open or in progress to compute dynamic workloads
+    tickets_query = (
+        supabase_admin.table("tickets")
+        .select("assigned_to")
+        .in_("status", ["open", "assigned", "in_progress"])
+        .execute()
+    )
+    
+    # Create a fast lookup counter for active ticket workloads
+    # e.g., {"tech_uuid_1": 3, "tech_uuid_2": 1}
+    workload_counter = {}
+    for ticket in tickets_query.data:
+        tech_id = ticket.get("assigned_to")
+        if tech_id:
+            workload_counter[tech_id] = workload_counter.get(tech_id, 0) + 1
 
-    return [
-        {
-            "id": p["id"],
+    # 3. Build the final payload with dynamically resolved emails and workloads
+    technicians = []
+    for p in result.data:
+        tech_id = p["id"]
+        technicians.append({
+            "id": tech_id,
             "full_name": p["full_name"],
-            "email": _get_email(p["id"]),
+            "email": _get_email(tech_id),  # Cleanly resolves via your Auth Admin helper
+            "is_online": p.get("is_online", False),
             "department": p.get("department"),
-            "approved_on": p.get("updated_at"),
-            "skills": _fetch_skills_for(p["id"]),
-        }
-        for p in result.data
-    ]
+            "supervisor_id": p.get("supervisor_id"),
+            "current_workload": workload_counter.get(tech_id, 0)  # Computes dynamic workload accurately
+        })
 
+    return technicians
 
 @router.post("/applications/{user_id}/approve", dependencies=[Depends(require_role("supervisor", "admin"))])
 def approve_application(user_id: str, current_user=Depends(get_current_user)):
@@ -125,3 +152,49 @@ def reject_application(user_id: str, current_user=Depends(get_current_user)):
     }).eq("id", user_id).execute()
 
     return {"message": f"{applicant.data['full_name']}'s application was rejected"}
+
+
+
+@router.get("", dependencies=[Depends(require_role("supervisor", "admin"))])
+def list_supervisor_tickets(status: Optional[str] = None, current_user=Depends(get_current_user)):
+    """
+    Supervisors only see tickets assigned to their direct technicians, 
+    or unassigned tickets escalated by their team pool.
+    """
+    role = current_user["profile"]["role"]
+
+    if role == "admin":
+        # Admins see everything globally
+        query = supabase_admin.table("tickets").select("*").order("created_at", desc=True)
+        if status:
+            query = query.eq("status", status)
+        return query.execute().data
+
+    # --- SUPERVISOR LOGIC ---
+    # 1. Fetch the IDs of all technicians who report to this supervisor
+    my_techs_query = (
+        supabase_admin.table("profiles")
+        .select("id")
+        .eq("supervisor_id", current_user["id"])
+        .execute()
+    )
+    my_tech_ids = [tech["id"] for tech in my_techs_query.data]
+
+    # 2. Map structural array data into strings for the .or_ filter
+    tech_ids_str = ",".join(my_tech_ids) if my_tech_ids else "null"
+    
+    # We query tickets matching:
+    # - current assignee is one of your direct technicians
+    # - OR it's unassigned but flagged as escalated by one of your technicians
+    query = (
+        supabase_admin.table("tickets")
+        .select("*")
+        .or_(f"assigned_to.in.({tech_ids_str}),and(is_escalated.eq.true,escalated_by.in.({tech_ids_str}))")
+        .order("created_at", desc=True)
+    )
+
+    if status:
+        query = query.eq("status", status)
+
+    result = query.execute()
+    return result.data
