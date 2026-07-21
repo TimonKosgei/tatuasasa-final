@@ -21,7 +21,7 @@ export default function StaffSettingsPanel({ tickets = [] }) {
   
   // --- State: Security & Preferences ---
   const [newPassword, setNewPassword] = useState('');
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState(() => localStorage.getItem('staff_theme') || 'light');
   const [language, setLanguage] = useState('en-US');
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true);
 
@@ -42,7 +42,10 @@ export default function StaffSettingsPanel({ tickets = [] }) {
           // Pull preferences from metadata for UI only
           setPhone(user.user_metadata?.phone || '');
           setAvatar(user.user_metadata?.avatar || '🧑‍💻');
-          setTheme(user.user_metadata?.theme || 'light');
+          // If no local theme, use the one from DB
+          if (!localStorage.getItem('staff_theme') && user.user_metadata?.theme) {
+            setTheme(user.user_metadata.theme);
+          }
           setLanguage(user.user_metadata?.language || 'en-US');
         }
 
@@ -82,6 +85,7 @@ export default function StaffSettingsPanel({ tickets = [] }) {
       const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       root.setAttribute('data-theme', systemPrefersDark ? 'dark' : 'light');
     }
+    localStorage.setItem('staff_theme', theme);
   }, [theme]);
 
   // Language Application
@@ -241,7 +245,7 @@ export default function StaffSettingsPanel({ tickets = [] }) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/');
+    navigate('/auth/login');
   };
 
   if (loading) return <div style={{ padding: '20px', color: 'var(--text-muted)' }}>Loading settings...</div>;
@@ -409,7 +413,7 @@ export default function StaffSettingsPanel({ tickets = [] }) {
                   <input type="password" id="newPassword" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Enter a new secure password" />
                 </div>
                 <button type="submit" className="btn-save" disabled={saving}>
-                  Update Password
+                  {saving ? 'Updating...' : 'Update Password'}
                 </button>
               </form>
             </div>

@@ -29,7 +29,7 @@ export default function ReviewSection() {
           </p>
 
           <Link
-            to="/tools/blog"
+            to="/blog/sarah-m-review"
             className="mt-6 inline-block text-[14px] font-semibold underline underline-offset-4 transition-opacity hover:opacity-60"
           >
             Read article →

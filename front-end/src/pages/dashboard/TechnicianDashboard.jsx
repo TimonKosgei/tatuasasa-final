@@ -1,27 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../config/api";
+import { supabase } from "../../config/SupabaseClient";
+import { playNotificationSound } from "../../utils/sound";
+import './admin-livequeue.css';
 
-/*
-  AUTOMATIC SWITCH: this still starts with an empty `jobs` array to simulate a
-  brand-new technician. Replace the useState([]) below with a real fetch once
-  a backend exists (see comments further down). The "Simulate: assign a job"
-  button is demo-only — delete it once real assignment exists.
-*/
-
-const demoJob = {
-  id: 0,
-  title: "Fix printer, ICT office",
-  ticket: "Ticket #204 — from Grace A.",
-  location: "Telposta Towers, 7th floor, ICT office",
-  staffName: "Grace",
-  description: "The printer keeps jamming on every third page, tried restarting it twice.",
-  fileName: "printer_error.jpg",
-  aiAnswer: "Similar tickets were fixed by replacing the fuser unit — bring a spare.",
-  initialMessages: [
-    { from: "staff", text: "Any update? The printer is down again." },
-    { from: "me", text: "On my way now, bringing a spare part." },
-  ],
-  feedback: '"Fixed in 20 minutes, thank you!"',
+const formatAiResponse = (text) => {
+  if (!text) return null;
+  return text.split('\n').map((line, i) => {
+    const parts = line.split(/(\*\*.*?\*\*)/g);
+    return (
+      <div key={i} className="min-h-[1.2em] mb-1 leading-relaxed">
+        {parts.map((part, j) => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return <strong key={j} className="font-semibold text-slate-800">{part.slice(2, -2)}</strong>;
+          }
+          return part;
+        })}
+      </div>
+    );
+  });
 };
 
 const avatarOptions = ["headset", "laptop", "wrench"];
@@ -48,8 +45,9 @@ function buildJobFromTicket(ticket) {
     description: ticket.description || "No details provided.",
     fileName: "",
     aiAnswer: "Ask Tatua Sasa AI for guidance.",
-    initialMessages: [],
     feedback: "Thanks for the update.",
+    status: ticket.status || "assigned",
+    priority: ticket.priority || "medium",
   };
 }
 
@@ -68,27 +66,54 @@ function AvatarIcon({ kind, size = 22 }) {
   );
 }
 
-function StatusToggle({ active, onToggle, accent }) {
+function StatusToggle({ active, onToggle, accent, isTogglingAvailability }) {
   return (
     <button
       onClick={onToggle}
-      className="flex items-center gap-2 border px-3 py-2 text-[13px] font-semibold"
+      disabled={isTogglingAvailability}
+      className="flex items-center gap-2 border px-3 py-2 text-[13px] font-semibold disabled:opacity-50"
       style={{ borderColor: accent }}
     >
       <span
         className="inline-block h-2 w-2 rounded-full"
         style={{ background: active ? accent : "var(--color-muted)" }}
       />
-      {active ? "Active" : "Away"}
+      {isTogglingAvailability ? "Updating..." : (active ? "Active" : "Away")}
     </button>
   );
 }
 
-function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onResolve, onAskAi }) {
+function StatusPill({ status }) {
+  const s = status?.toLowerCase() || '';
+  if (['high', 'medium', 'low', 'urgent'].includes(s)) {
+    return <span className={`priority-indicator priority-${s === 'urgent' ? 'high' : s}`}>{status}</span>;
+  }
+  if (['open', 'assigned', 'in_progress', 'resolved', 'closed', 'escalated', 'pending', 'approved', 'rejected'].includes(s)) {
+    return <span className={`admin-status-badge admin-status-${s === 'escalated' ? 'open' : s}`}>{status.replace('_', ' ')}</span>;
+  }
+  const map = {
+    online: { bg: "#eaf3de", color: "#27500a" },
+    busy: { bg: "#faeeda", color: "#854f0b" },
+    offline: { bg: "#f1efe8", color: "#6e6e6e" },
+  };
+  const fall = map[s] || { bg: "#f1efe8", color: "#6e6e6e" };
+  return (
+    <span
+      className="whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium"
+      style={{ background: fall.bg, color: fall.color }}
+    >
+      {status}
+    </span>
+  );
+}
+
+function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onResolve, onAskAi, assetsList = [] }) {
   const [stage, setStage] = useState("pending");
   const [chatOpen, setChatOpen] = useState(false);
-  const [messages, setMessages] = useState(job.initialMessages);
+  const [messages, setMessages] = useState([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [userId, setUserId] = useState(null);
   const [aiAsked, setAiAsked] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [assetNumber, setAssetNumber] = useState("");
@@ -96,12 +121,100 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
   const [duration, setDuration] = useState("");
   const [published, setPublished] = useState(false);
   const [savedOnly, setSavedOnly] = useState(false);
+  const [submittingAction, setSubmittingAction] = useState(null); // "accept", "reject", "escalate", "resolve_publish", "resolve_save", "ask_ai"
   const stepRefs = useRef([]);
+  const ticketId = job.ticketId ?? job.id;
 
-  const sendMessage = () => {
-    if (!chatInput.trim()) return;
-    setMessages((m) => [...m, { from: "me", text: chatInput.trim() }]);
+  // Resolve the technician's own id once, used to tell "my" bubbles apart from staff's
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data?.user) setUserId(data.user.id);
+    });
+  }, []);
+
+  // Load chat history the first time the thread is opened
+  useEffect(() => {
+    if (!chatOpen) return;
+
+    let cancelled = false;
+    const loadMessages = async () => {
+      setLoadingMessages(true);
+      try {
+        const history = await apiFetch(`/tickets/${ticketId}/messages`, {}, "Failed to load chat history");
+        if (!cancelled) setMessages(history || []);
+      } catch (err) {
+        if (!cancelled) setMessages([]);
+      } finally {
+        if (!cancelled) setLoadingMessages(false);
+      }
+    };
+    loadMessages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chatOpen, ticketId]);
+
+  // Realtime subscription so new staff messages appear without reopening the thread
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`ticket_messages:${ticketId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ticket_messages",
+          filter: `ticket_id=eq.${ticketId}`,
+        },
+        (payload) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === payload.new.id)) return prev;
+            if (payload.new.sender_id !== userId) {
+              playNotificationSound();
+            }
+            return [...prev, payload.new];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [ticketId, userId]);
+
+  const sendMessage = async () => {
+    const body = chatInput.trim();
+    if (!body) return;
+
+    const tempId = `temp-${Date.now()}`;
+    const tempMessage = {
+      id: tempId,
+      body,
+      sender_id: userId,
+      sender_role: "technician",
+      created_at: new Date().toISOString(),
+      status: "sending",
+    };
+
+    setMessages((m) => [...m, tempMessage]);
     setChatInput("");
+
+    try {
+      const sent = await apiFetch(
+        `/tickets/${ticketId}/messages`,
+        { method: "POST", body: JSON.stringify({ body }) },
+        "Failed to send message"
+      );
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...sent, status: "delivered" } : m))
+      );
+    } catch (err) {
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
+    }
   };
 
   const updateStep = (i, val) => {
@@ -134,41 +247,52 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
   };
 
   const handleAccept = async () => {
+    setSubmittingAction("accept");
     try {
-      await onAccept?.(job.ticketId ?? job.id);
+      await onAccept?.(ticketId);
       setStage("working");
     } catch (err) {
       // Keep the UI state unchanged if the API call fails.
+    } finally {
+      setSubmittingAction(null);
     }
   };
 
   const handleReject = async () => {
+    setSubmittingAction("reject");
     try {
-      await onReject?.(job.ticketId ?? job.id);
+      await onReject?.(ticketId);
       setStage("rejected");
     } catch (err) {
       // Keep the UI state unchanged if the API call fails.
+    } finally {
+      setSubmittingAction(null);
     }
   };
 
   const handleEscalate = async () => {
+    setSubmittingAction("escalate");
     try {
-      await onEscalate?.(job.ticketId ?? job.id);
+      await onEscalate?.(ticketId);
       setStage("escalated");
     } catch (err) {
       // Keep the UI state unchanged if the API call fails.
+    } finally {
+      setSubmittingAction(null);
     }
   };
 
   const handleResolve = async (isPublished) => {
+    setSubmittingAction(isPublished ? "resolve_publish" : "resolve_save");
     const cleanedSteps = steps.map((s) => s.trim()).filter(Boolean);
-    if (!cleanedSteps.length) return;
 
     try {
       await onResolve?.({
-        ticketId: job.ticketId ?? job.id,
-        steps: cleanedSteps,
-        comment: `Time spent: ${duration || "n/a"}. Notes: ${assetNumber || "n/a"}`,
+        ticketId,
+        steps: cleanedSteps.length ? cleanedSteps : ["Issue inspected and resolved."],
+        comment: `Time spent: ${duration || "Not specified"}.`,
+        assetTag: assetNumber || undefined,
+        publishRequested: isPublished
       });
       if (isPublished) {
         setPublished(true);
@@ -177,6 +301,8 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
       }
     } catch (err) {
       // Keep the UI state unchanged if the API call fails.
+    } finally {
+      setSubmittingAction(null);
     }
   };
 
@@ -186,8 +312,9 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
       return;
     }
 
+    setSubmittingAction("ask_ai");
     try {
-      const response = await onAskAi(aiInput.trim());
+      const response = await onAskAi(aiInput.trim(), assetNumber);
       const answer = typeof response === "string" ? response : response?.answer || response?.message || job.aiAnswer;
       setAiAsked(true);
       if (answer) {
@@ -196,6 +323,8 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
     } catch (err) {
       setAiAsked(true);
       setAiInput(err.message || "Unable to load guidance.");
+    } finally {
+      setSubmittingAction(null);
     }
   };
 
@@ -286,19 +415,28 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
           {chatOpen && (
             <div className="border border-[var(--color-line)] p-3">
               <div className="flex max-h-[150px] flex-col gap-1.5 overflow-y-auto">
-                {messages.map((m, i) => (
-                  <div
-                    key={i}
-                    className="max-w-[80%] px-2.5 py-2 text-[13px]"
-                    style={
-                      m.from === "me"
-                        ? { alignSelf: "flex-end", background: accent, color: onAccent }
-                        : { alignSelf: "flex-start", background: "#f1efe8" }
-                    }
-                  >
-                    {m.text}
-                  </div>
-                ))}
+                {loadingMessages ? (
+                  <p className="text-[13px] text-[var(--color-muted)]">Loading messages…</p>
+                ) : messages.length === 0 ? (
+                  <p className="text-[13px] text-[var(--color-muted)]">No messages yet.</p>
+                ) : (
+                  messages.map((m) => {
+                    const isMine = m.sender_id === userId;
+                    return (
+                      <div
+                        key={m.id}
+                        className="max-w-[80%] px-2.5 py-2 text-[13px]"
+                        style={
+                          isMine
+                            ? { alignSelf: "flex-end", background: accent, color: onAccent }
+                            : { alignSelf: "flex-start", background: "#f1efe8" }
+                        }
+                      >
+                        {m.body}
+                      </div>
+                    );
+                  })
+                )}
               </div>
               <div className="mt-2.5 flex gap-2">
                 <input
@@ -315,6 +453,27 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
             </div>
           )}
 
+          <div className="border border-[var(--color-line)] p-3 mb-3">
+            <label className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-muted)]">
+              Linked Asset
+            </label>
+            <input
+              list="assets-list"
+              value={assetNumber}
+              onChange={(e) => setAssetNumber(e.target.value)}
+              placeholder="Search by asset tag or name..."
+              className="mt-2 w-full border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
+              disabled={resolved}
+            />
+            <datalist id="assets-list">
+              {assetsList.map((a) => (
+                <option key={a.id} value={a.asset_tag}>
+                  {a.name} ({a.category})
+                </option>
+              ))}
+            </datalist>
+          </div>
+
           <div className="border border-dashed border-[var(--color-line)] p-3">
             <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-muted)]">
               Ask Tatua Sasa AI
@@ -328,12 +487,13 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
               />
               <button
                 onClick={handleAskAi}
-                className="border border-[var(--color-ink)] px-3 py-2 text-[13px] font-semibold"
+                disabled={submittingAction !== null}
+                className="border border-[var(--color-ink)] px-3 py-2 text-[13px] font-semibold disabled:opacity-50"
               >
-                Ask
+                {submittingAction === "ask_ai" ? "Generating..." : "Ask"}
               </button>
             </div>
-            {aiAsked && <p className="mt-2 text-[13px] text-[var(--color-muted)]">{aiInput}</p>}
+            {aiAsked && <div className="mt-3 text-[13px] text-[var(--color-muted)] bg-[#f7f7f7] p-3 border border-dashed border-[#e2e8f0] rounded">{formatAiResponse(aiInput)}</div>}
           </div>
 
           {!resolved && stage !== "resolving" && (
@@ -349,14 +509,16 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={handleEscalate}
-                className="flex-1 border py-2.5 text-[14px] font-semibold"
+                disabled={submittingAction !== null}
+                className="flex-1 border py-2.5 text-[14px] font-semibold disabled:opacity-50"
                 style={{ background: "#faeeda", color: "#854f0b", borderColor: "#854f0b" }}
               >
-                Escalate issue
+                {submittingAction === "escalate" ? "Escalating..." : "Escalate issue"}
               </button>
               <button
                 onClick={() => setStage("resolving")}
-                className="flex-1 border py-2.5 text-[14px] font-semibold"
+                disabled={submittingAction !== null}
+                className="flex-1 border py-2.5 text-[14px] font-semibold disabled:opacity-50"
                 style={{ background: accent, borderColor: accent, color: onAccent }}
               >
                 Mark as resolved
@@ -367,16 +529,6 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
           {stage === "resolving" && !resolved && (
             <div className="bg-[#f7f7f7] p-4">
               <p className="text-[15px] font-semibold">Add this to the knowledge base</p>
-
-              <label className="mt-3 block text-[12px] text-[var(--color-muted)]">
-                Asset number, for inventory (optional)
-              </label>
-              <input
-                value={assetNumber}
-                onChange={(e) => setAssetNumber(e.target.value)}
-                placeholder="AST-2291"
-                className="mt-1 w-full border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
-              />
 
               <p className="mt-3 text-[12px] text-[var(--color-muted)]">Steps</p>
               <div className="mt-1.5 flex flex-col gap-2">
@@ -414,16 +566,18 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                 <button
                   onClick={() => handleResolve(true)}
-                  className="flex-1 border py-2.5 text-[14px] font-semibold"
+                  disabled={submittingAction !== null}
+                  className="flex-1 border py-2.5 text-[14px] font-semibold disabled:opacity-50"
                   style={{ background: accent, borderColor: accent, color: onAccent }}
                 >
-                  Publish article
+                  {submittingAction === "resolve_publish" ? "Publishing..." : "Publish article"}
                 </button>
                 <button
                   onClick={() => handleResolve(false)}
-                  className="flex-1 border border-[var(--color-ink)] py-2.5 text-[14px] font-semibold"
+                  disabled={submittingAction !== null}
+                  className="flex-1 border border-[var(--color-ink)] py-2.5 text-[14px] font-semibold disabled:opacity-50"
                 >
-                  Save and mark as done
+                  {submittingAction === "resolve_save" ? "Saving..." : "Save and mark as done"}
                 </button>
               </div>
             </div>
@@ -450,12 +604,18 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
 function SkillsPanel({ skills, onAddSkill }) {
   const [showInput, setShowInput] = useState(false);
   const [value, setValue] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const addSkill = async () => {
     if (!value.trim()) return;
-    await onAddSkill(value.trim());
-    setValue("");
-    setShowInput(false);
+    setIsSubmitting(true);
+    try {
+      await onAddSkill(value.trim());
+      setValue("");
+      setShowInput(false);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -489,9 +649,10 @@ function SkillsPanel({ skills, onAddSkill }) {
             onKeyDown={(e) => e.key === "Enter" && addSkill()}
             placeholder="Networking"
             className="min-w-0 flex-1 border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
+            disabled={isSubmitting}
           />
-          <button onClick={addSkill} className="border border-[var(--color-ink)] bg-[var(--color-ink)] px-3 text-[13px] font-semibold text-[var(--color-bg)]">
-            Save
+          <button onClick={addSkill} disabled={isSubmitting} className="border border-[var(--color-ink)] bg-[var(--color-ink)] px-3 text-[13px] font-semibold text-[var(--color-bg)] disabled:opacity-50">
+            {isSubmitting ? "Saving..." : "Save"}
           </button>
         </div>
       )}
@@ -505,8 +666,16 @@ export default function TechnicianDashboard() {
   const [bio, setBio] = useState("Field technician specialising in networking and hardware repair.");
   const [avatar, setAvatar] = useState("headset");
   const [active, setActive] = useState(false);
-  const [greenTheme, setGreenTheme] = useState(true);
+  const [greenTheme, setGreenTheme] = useState(() => {
+    const saved = localStorage.getItem('technician_theme');
+    return saved !== null ? saved === 'true' : true;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('technician_theme', greenTheme);
+  }, [greenTheme]);
   const [view, setView] = useState("queue");
+  const [selectedJobId, setSelectedJobId] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [skills, setSkills] = useState([]);
   const [solvedHistory, setSolvedHistory] = useState([]);
@@ -514,6 +683,10 @@ export default function TechnicianDashboard() {
   const [profileSaved, setProfileSaved] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [kbSearch, setKbSearch] = useState("");
+  const [assetsList, setAssetsList] = useState([]);
+  
+  const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   const accent = greenTheme ? "#0B3D2E" : "#0b0b0b";
   const onAccent = "#ffffff";
@@ -543,7 +716,10 @@ export default function TechnicianDashboard() {
 
       try {
         const assignedTickets = await apiFetch("/tickets/assigned", {}, "Failed to load assigned tickets");
-        setJobs((assignedTickets || []).map(buildJobFromTicket));
+        const activeTickets = (assignedTickets || []).filter(
+          t => t.status !== "resolved" && t.status !== "closed"
+        );
+        setJobs(activeTickets.map(buildJobFromTicket));
       } catch (err) {
         setJobs([]);
       }
@@ -561,6 +737,13 @@ export default function TechnicianDashboard() {
           setSkills([]);
         }
       }
+
+      try {
+        const assetsData = await apiFetch("/assets", {}, "Failed to load assets");
+        setAssetsList(assetsData || []);
+      } catch (err) {
+        setAssetsList([]);
+      }
     };
 
     loadDashboardData();
@@ -573,6 +756,7 @@ export default function TechnicianDashboard() {
 
   const handleAvailabilityToggle = async () => {
     const nextState = !active;
+    setIsTogglingAvailability(true);
     try {
       const response = await apiFetch(
         "/technicians/me/availability",
@@ -585,6 +769,8 @@ export default function TechnicianDashboard() {
       setActive(Boolean(response?.is_online ?? nextState));
     } catch (err) {
       setActive(active);
+    } finally {
+      setIsTogglingAvailability(false);
     }
   };
 
@@ -608,7 +794,7 @@ export default function TechnicianDashboard() {
       },
       "Failed to reject the ticket"
     );
-    setJobs([]);
+    setJobs(jobs => jobs.filter(j => j.id !== ticketId));
   };
 
   const handleEscalateTicket = async (ticketId) => {
@@ -620,17 +806,25 @@ export default function TechnicianDashboard() {
       },
       "Failed to escalate the ticket"
     );
+    setJobs(jobs => jobs.filter(j => j.id !== ticketId));
   };
 
-  const handleResolveTicket = async ({ ticketId, steps, comment }) => {
+  const handleResolveTicket = async ({ ticketId, steps, comment, assetTag, publishRequested }) => {
     await apiFetch(
       `/tickets/${ticketId}/status`,
       {
         method: "PATCH",
-        body: JSON.stringify({ status: "resolved", steps, comment }),
+        body: JSON.stringify({ 
+          status: "resolved", 
+          steps, 
+          comment, 
+          asset_tag: assetTag,
+          publish_requested: publishRequested
+        }),
       },
       "Failed to mark the ticket as resolved"
     );
+    setJobs(jobs => jobs.filter(j => j.id !== ticketId));
   };
 
   const handleAskAi = async (question) => {
@@ -670,6 +864,7 @@ export default function TechnicianDashboard() {
   const handleSaveProfile = async () => {
     if (!nameInput.trim()) return;
 
+    setIsSavingProfile(true);
     try {
       await apiFetch(
         "/me",
@@ -683,6 +878,8 @@ export default function TechnicianDashboard() {
       setProfileSaved(true);
     } catch (err) {
       setProfileSaved(false);
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -697,7 +894,7 @@ export default function TechnicianDashboard() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          <StatusToggle active={active} onToggle={handleAvailabilityToggle} accent={accent} />
+          <StatusToggle active={active} onToggle={handleAvailabilityToggle} accent={accent} isTogglingAvailability={isTogglingAvailability} />
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Open menu"
@@ -722,19 +919,69 @@ export default function TechnicianDashboard() {
                 </p>
               </div>
             )}
-            {hasJobs && (
-              <div className="rounded-2xl border border-[var(--color-ink)] shadow-sm">
-                <JobDetail
-                  key={jobs[0].id}
-                  job={jobs[0]}
-                  accent={accent}
-                  onAccent={onAccent}
-                  onAccept={handleAcceptTicket}
-                  onReject={handleRejectTicket}
-                  onEscalate={handleEscalateTicket}
-                  onResolve={handleResolveTicket}
-                  onAskAi={handleAskAi}
-                />
+            {hasJobs && !selectedJobId && (
+              <div className="admin-livequeue-container">
+                <div className="livequeue-header-row">
+                  <h2 className="text-[18px] font-semibold">Your Assigned Tickets</h2>
+                </div>
+                <div className="queue-table-responsive">
+                  <table className="queue-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Ticket Subject</th>
+                      <th>Location</th>
+                      <th>Priority</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {jobs.map((job) => (
+                      <tr key={job.id}>
+                        <td className="font-mono text-xs text-[var(--color-muted)]">T-{job.id}</td>
+                        <td className="font-medium">{job.title}</td>
+                        <td className="text-sm">{job.location}</td>
+                        <td><StatusPill status={job.priority} /></td>
+                        <td><StatusPill status={job.status} /></td>
+                        <td>
+                          <button
+                            onClick={() => setSelectedJobId(job.id)}
+                            className="rounded border px-3 py-1.5 text-[12px] font-semibold"
+                            style={{ borderColor: accent, color: accent }}
+                          >
+                            Open
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              </div>
+            )}
+            {hasJobs && selectedJobId && (
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => setSelectedJobId(null)}
+                  className="w-fit text-[13px] font-semibold text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+                >
+                  ← Back to Queue
+                </button>
+                <div className="rounded-2xl border border-[var(--color-ink)] shadow-sm">
+                  <JobDetail
+                    key={selectedJobId}
+                    job={jobs.find(j => j.id === selectedJobId) || jobs[0]}
+                    accent={accent}
+                    onAccent={onAccent}
+                    onAccept={handleAcceptTicket}
+                    onReject={handleRejectTicket}
+                    onEscalate={handleEscalateTicket}
+                    onResolve={handleResolveTicket}
+                    onAskAi={handleAskAi}
+                    assetsList={assetsList}
+                  />
+                </div>
               </div>
             )}
           </>
@@ -848,10 +1095,11 @@ export default function TechnicianDashboard() {
 
             <button
               onClick={handleSaveProfile}
-              className="mt-4 rounded-lg border px-5 py-2.5 text-[14px] font-semibold"
+              disabled={isSavingProfile}
+              className="mt-4 rounded-lg border px-5 py-2.5 text-[14px] font-semibold disabled:opacity-50"
               style={{ background: accent, borderColor: accent, color: onAccent }}
             >
-              Save profile
+              {isSavingProfile ? "Saving..." : "Save profile"}
             </button>
             {profileSaved && <p className="mt-2 text-[13px] text-[#27500a]">Profile updated.</p>}
           </div>
@@ -911,12 +1159,22 @@ export default function TechnicianDashboard() {
           ))}
         </div>
 
-        <div className="absolute bottom-0 w-full border-t border-[var(--color-line)] p-3">
+        <div className="absolute bottom-0 w-full border-t border-[var(--color-line)] p-3 bg-[var(--color-bg)]">
           <button
             onClick={() => setGreenTheme((g) => !g)}
             className="w-full rounded-xl px-4 py-3 text-left text-[14px] font-semibold text-[var(--color-muted)]"
           >
             {greenTheme ? "Switch to black and white" : "Switch to hunter green"}
+          </button>
+          <button 
+            onClick={async () => {
+              try { await apiFetch('/logout', { method: 'POST' }); } catch (err) {}
+              localStorage.removeItem('token');
+              window.location.href = '/auth/login';
+            }}
+            className="w-full rounded-xl px-4 py-3 text-left text-[13px] font-semibold text-[#a32d2d]"
+          >
+            Log out
           </button>
         </div>
       </div>

@@ -16,13 +16,7 @@ export default function AdminLiveQueue() {
         const data = await apiFetch('/admin/tickets/active', {}, 'Failed to load live queue');
         setTickets(data || []);
       } catch (err) {
-        // Fallback simulation array if endpoint is pending backend implementation
-        setTickets([
-          { id: 1, title: 'Wi-Fi connection failing in Block B', category: 'network', status: 'open', priority: 'urgent', created_at: new Date().toISOString() },
-          { id: 2, title: 'Printer driver missing on Finance PC', category: 'printers', status: 'assigned', priority: 'medium', created_at: new Date(Date.now() - 3600000).toISOString() },
-          { id: 3, title: 'Database access credentials expired', category: 'software', status: 'in_progress', priority: 'high', created_at: new Date(Date.now() - 7200000).toISOString() }
-        ]);
-        setError('');
+        setError('Failed to load active tickets.');
       } finally {
         setLoading(false);
       }

@@ -34,7 +34,7 @@ import TechnicianDashboard from "./pages/dashboard/TechnicianDashboard";
 import StaffDashboard from "./pages/dashboard/StaffDashboard";
 import SupervisorDashboard from "./pages/dashboard/SupervisorDashboard";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
-
+import Supervisor from "./pages/dashboard/sp"; // Import the Supervisor component
 //settings pages
 import StaffSettingsPanel from "./pages/dashboard/StaffSettingsPanel"
 
@@ -108,7 +108,7 @@ export default function App() {
           <Route path="/dashboard/technician" element={<TechnicianDashboard />} />
           <Route path="/auth/forgot-password" element={<ForgotPassword />} />
           <Route path="/auth/update-password" element={<UpdatePassword />} />
-            
+          <Route path="/supervisor" element={<Navigate to="/dashboard/supervisor" replace />} />
           <Route
             path="*"
             element={<StubPage title="Page not found" blurb="That page doesn't exist yet." />}

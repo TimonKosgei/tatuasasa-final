@@ -100,13 +100,13 @@ export default function Navbar() {
             View demo
           </Link>
           <Link
-            to="/auth/login"
+            to="/login"
             className="text-[14px] font-medium tracking-tight transition-opacity hover:opacity-60"
           >
             Log in / Sign up
           </Link>
           <Link
-            to="/auth/signup"
+            to="/get-started"
             className="border border-[var(--color-ink)] bg-[var(--color-ink)] px-5 py-2.5 text-[14px] font-semibold text-[var(--color-bg)] transition-colors hover:bg-[var(--color-bg)] hover:text-[var(--color-ink)]"
           >
             Try for free
@@ -154,7 +154,7 @@ const MobileMenuButton = () => {
             Pricing
           </Link>
           <Link
-            to="/auth/signup"
+            to="/get-started"
             className="mt-3 block border border-[var(--color-ink)] bg-[var(--color-ink)] px-5 py-2.5 text-center text-[14px] font-semibold text-[var(--color-bg)]"
           >
             Try for free

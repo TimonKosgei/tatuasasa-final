@@ -19,21 +19,7 @@ export default function AdminWorkforce() {
         const data = await apiFetch('/admin/workforce', {}, 'Failed to load workforce analytics');
         setWorkforceData(data);
       } catch (err) {
-        // Fallback simulation data for preview and layout verification
-        setWorkforceData({
-          technicians: [
-            { id: 1, name: 'Brian Kipkorir', status: 'online', resolvedCount: 34, hoursWorked: '160 hrs' },
-            { id: 2, name: 'Eunice Njeri', status: 'busy', resolvedCount: 28, hoursWorked: '152 hrs' },
-            { id: 3, name: 'Felix Mbugua', status: 'offline', resolvedCount: 19, hoursWorked: '140 hrs' },
-          ],
-          supervisors: [
-            { id: 1, name: 'Alice Wanjiku', status: 'online', teamSize: 5, approvalRate: '98%' },
-            { id: 2, name: 'David Ochieng', status: 'online', teamSize: 4, approvalRate: '92%' },
-          ],
-          starTechnician: { name: 'Brian Kipkorir', resolvedCount: 34, hoursWorked: '160 hrs' },
-          starSupervisor: { name: 'Alice Wanjiku', teamSize: 5, approvalRate: '98%' }
-        });
-        setError('');
+        setError('Failed to load workforce analytics.');
       } finally {
         setLoading(false);
       }

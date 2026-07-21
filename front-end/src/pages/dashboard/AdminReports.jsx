@@ -1,14 +1,24 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { apiFetch } from '../../config/api';
 import './admin-reports.css';
 
-export default function AdminReports({ allTickets = [] }) {
+export default function AdminReports({ allTickets: initialTickets = [] }) {
+  const [allTickets, setAllTickets] = useState(initialTickets);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isReportGenerated, setIsReportGenerated] = useState(false);
   const [filteredTickets, setFilteredTickets] = useState([]);
   const [summaryData, setSummaryData] = useState([]);
+
+  useEffect(() => {
+    if (initialTickets.length === 0) {
+      apiFetch('/tickets').then(data => {
+        if (data) setAllTickets(data);
+      }).catch(err => console.error("Failed to load tickets for reports", err));
+    }
+  }, [initialTickets]);
 
   const handleGenerateReport = (e) => {
     e.preventDefault();
@@ -25,13 +35,7 @@ export default function AdminReports({ allTickets = [] }) {
     });
 
     // Fallback mock array if no props passed for preview testing
-    const ticketsToProcess = matchingTickets.length > 0 ? matchingTickets : [
-      { id: 1, title: 'Wi-Fi failure in Block B', category: 'network', created_at: startDate },
-      { id: 2, title: 'Router reset required', category: 'network', created_at: startDate },
-      { id: 3, title: 'Printer jam on floor 2', category: 'printers', created_at: startDate },
-      { id: 4, title: 'New toner request', category: 'printers', created_at: startDate },
-      { id: 5, title: 'Network cable replacement', category: 'network', created_at: startDate },
-    ];
+    const ticketsToProcess = matchingTickets;
 
     // 2. Generate Summary Data (Group by category, count, sort descending highest to lowest)
     const summaryCounts = ticketsToProcess.reduce((acc, ticket) => {

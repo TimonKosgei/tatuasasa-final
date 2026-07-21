@@ -66,6 +66,19 @@ export default function StaffDashboard() {
     loadProfile();
   }, []);
 
+  useEffect(() => {
+    const theme = localStorage.getItem('staff_theme') || 'light';
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.setAttribute('data-theme', 'dark');
+    } else if (theme === 'light') {
+      root.setAttribute('data-theme', 'light');
+    } else if (theme === 'system') {
+      const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.setAttribute('data-theme', isDark ? 'dark' : 'light');
+    }
+  }, []);
+
   const totalTickets = tickets.length;
   const openTickets = tickets.filter((t) => ['open', 'assigned', 'in_progress'].includes(t.status)).length;
   const resolvedTickets = tickets.filter((t) => ['resolved', 'closed'].includes(t.status)).length;

@@ -33,16 +33,7 @@ export default function AdminCatalog() {
         { id: 5, name: 'Security', value: 'security' },
       ]);
     } catch (err) {
-      // Fallback preview data
-      setSkills([
-        { id: 101, name: 'Cisco Routing & Switching', category: 'Network' },
-        { id: 102, name: 'Active Directory Management', category: 'Software' },
-      ]);
-      setCategories([
-        { id: 1, name: 'Network & Wi-Fi', value: 'network' },
-        { id: 2, name: 'Hardware / Peripherals', value: 'hardware' },
-      ]);
-      setError('');
+      setError('Failed to load skills catalog.');
     } finally {
       setLoading(false);
     }
@@ -66,11 +57,8 @@ export default function AdminCatalog() {
       setMessage('Category added successfully.');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      // Local fallback
-      setCategories(prev => [...prev, newItem]);
-      setNewCatName('');
-      setMessage('Category added successfully.');
-      setTimeout(() => setMessage(''), 3000);
+      setError('Failed to add category.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 
@@ -81,21 +69,18 @@ export default function AdminCatalog() {
     const newItem = { id: Date.now(), name: newSkillName, category: newSkillCategory };
 
     try {
-      await apiFetch('/admin/skills', {
+      const addedSkill = await apiFetch('/admin/skills', {
         method: 'POST',
         body: JSON.stringify(newItem)
       }, 'Failed to add skill');
 
-      setSkills(prev => [...prev, newItem]);
+      setSkills(prev => [...prev, addedSkill || newItem]);
       setNewSkillName('');
       setMessage('Skill added successfully.');
       setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      // Local fallback
-      setSkills(prev => [...prev, newItem]);
-      setNewSkillName('');
-      setMessage('Skill added successfully.');
-      setTimeout(() => setMessage(''), 3000);
+      setError('Failed to add skill.');
+      setTimeout(() => setError(''), 3000);
     }
   };
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './admin-dashboard.css';
 import AdminOverview from './AdminOverview';
 import AdminLiveQueue from './AdminLiveQueue';
@@ -7,10 +7,18 @@ import AdminWorkforce from './AdminWorkforce';
 import AdminCatalog from './AdminCatalog';
 import AdminSettings from './AdminSettings';
 import AdminReports from './AdminReports';
+import AdminAssets from './AdminAssets';
+import AdminKnowledgeBase from './AdminKnowledgeBase';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const theme = localStorage.getItem('admin_theme') || 'system';
+    const isDark = theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+  }, []);
 
   const getTabTitle = () => {
     switch (activeTab) {
@@ -19,6 +27,8 @@ export default function AdminDashboard() {
       case 'users': return 'User Management';
       case 'workforce': return 'Workforce Management';
       case 'catalog': return 'Skills & Categories';
+      case 'assets': return 'Asset Management';
+      case 'knowledge_base': return 'Core Knowledge Base';
       case 'reports': return 'Organization Reports';
       case 'settings': return 'Admin Settings';
       default: return 'System Overview';
@@ -56,12 +66,31 @@ export default function AdminDashboard() {
           <button className={`admin-sidebar-nav-btn ${activeTab === 'catalog' ? 'active' : ''}`} onClick={() => handleNavClick('catalog')}>
             Skills & Categories
           </button>
+          <button className={`admin-sidebar-nav-btn ${activeTab === 'assets' ? 'active' : ''}`} onClick={() => handleNavClick('assets')}>
+            Asset Management
+          </button>
+          <button className={`admin-sidebar-nav-btn ${activeTab === 'knowledge_base' ? 'active' : ''}`} onClick={() => handleNavClick('knowledge_base')}>
+            Knowledge Base Ingestion
+          </button>
           <button className={`admin-sidebar-nav-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => handleNavClick('reports')}>
             Reports
           </button>
           <button className={`admin-sidebar-nav-btn ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => handleNavClick('settings')}>
             Settings
           </button>
+          <div style={{ marginTop: 'auto', paddingTop: '20px', borderTop: '1px solid var(--color-line)' }}>
+            <button 
+              className="admin-sidebar-nav-btn" 
+              style={{ color: '#a32d2d' }}
+              onClick={async () => {
+                try { await fetch('http://localhost:8000/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }); } catch (err) {}
+                localStorage.removeItem('token');
+                window.location.href = '/auth/login';
+              }}
+            >
+              Log out
+            </button>
+          </div>
         </nav>
       </aside>
 
@@ -121,6 +150,18 @@ export default function AdminDashboard() {
           {activeTab === 'catalog' && (
             <div className="admin-tab-content">
               <AdminCatalog />
+            </div>
+          )}
+
+          {activeTab === 'assets' && (
+            <div className="admin-tab-content">
+              <AdminAssets />
+            </div>
+          )}
+
+          {activeTab === 'knowledge_base' && (
+            <div className="admin-tab-content">
+              <AdminKnowledgeBase />
             </div>
           )}
 

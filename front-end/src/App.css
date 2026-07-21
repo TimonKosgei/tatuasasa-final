@@ -15,6 +15,15 @@
   --sidebar-hover: #f4f7f6;
   --sidebar-active: #e6f0ec;
   --input-bg: #ffffff;
+
+  /* Marketing & Staff Dashboard Variables */
+  --color-bg: #ffffff;
+  --color-ink: #0b0b0b;
+  --color-line: #e5e5e5;
+  --color-muted: #6e6e6e;
+  --color-invert-line: #333333;
+  --color-invert-muted: #a3a3a3;
+  --surface: #f9fafb;
 }
 
 /* DARK MODE - The "True Black" Edition */
@@ -32,6 +41,15 @@
   --sidebar-hover: #27272a;
   --sidebar-active: #3f3f46;
   --input-bg: #09090b;      /* Inputs sink into the page */
+
+  /* Marketing & Staff Dashboard Variables */
+  --color-bg: #09090b;
+  --color-ink: #f4f4f5;
+  --color-line: #27272a;
+  --color-muted: #a1a1aa;
+  --color-invert-line: #3f3f46;
+  --color-invert-muted: #d4d4d8;
+  --surface: #18181b;
 }
 
 /* Apply smooth transitions globally */

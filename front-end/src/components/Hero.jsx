@@ -15,7 +15,7 @@ export default function Hero() {
       </p>
       <div className="mt-8 flex items-center justify-center gap-3">
         <Link
-          to="/auth/signup"
+          to="/get-started"
           className="inline-block border border-[var(--color-ink)] bg-[var(--color-ink)] px-8 py-3.5 text-[15px] font-semibold text-[var(--color-bg)] transition-colors hover:bg-[var(--color-bg)] hover:text-[var(--color-ink)]"
         >
           Join us

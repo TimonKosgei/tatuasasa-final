@@ -8,7 +8,9 @@ export default function AdminOverview() {
     totalTickets: 0,
     openTickets: 0,
     resolvedTickets: 0,
-    activeTechnicians: 0
+    activeTechnicians: 0,
+    totalAssets: 0,
+    assetsUnderRepair: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -20,22 +22,16 @@ export default function AdminOverview() {
         // Fetch real administrative metrics from your backend endpoints
         const data = await apiFetch('/admin/overview', {}, 'Failed to load system metrics');
         setStats({
-          totalUsers: data.total_users || 42,
-          totalTickets: data.total_tickets || 128,
-          openTickets: data.open_tickets || 14,
-          resolvedTickets: data.resolved_tickets || 114,
-          activeTechnicians: data.active_technicians || 8
+          totalUsers: data.total_users || 0,
+          totalTickets: data.total_tickets || 0,
+          openTickets: data.open_tickets || 0,
+          resolvedTickets: data.resolved_tickets || 0,
+          activeTechnicians: data.active_technicians || 0,
+          totalAssets: data.total_assets || 0,
+          assetsUnderRepair: data.assets_under_repair || 0
         });
       } catch (err) {
-        // Fallback placeholder structure if endpoint is still in development by backend team
-        setStats({
-          totalUsers: 42,
-          totalTickets: 128,
-          openTickets: 14,
-          resolvedTickets: 114,
-          activeTechnicians: 8
-        });
-        setError('');
+        setError('Failed to load system metrics.');
       } finally {
         setLoading(false);
       }
@@ -81,6 +77,18 @@ export default function AdminOverview() {
           <div className="admin-stat-title">Resolved Issues</div>
           <div className="admin-stat-value">{stats.resolvedTickets}</div>
           <div className="admin-stat-desc">Successfully closed tickets</div>
+        </div>
+
+        <div className="admin-stat-card">
+          <div className="admin-stat-title">Total Assets</div>
+          <div className="admin-stat-value">{stats.totalAssets || 0}</div>
+          <div className="admin-stat-desc">Registered organizational hardware</div>
+        </div>
+
+        <div className="admin-stat-card" style={{ borderColor: 'var(--brand-text)' }}>
+          <div className="admin-stat-title" style={{ color: 'var(--brand-text)' }}>Assets Under Repair</div>
+          <div className="admin-stat-value">{stats.assetsUnderRepair || 0}</div>
+          <div className="admin-stat-desc">Currently out of commission</div>
         </div>
       </div>
 

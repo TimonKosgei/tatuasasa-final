@@ -7,6 +7,7 @@ export default function AdminUserManagement() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [updatingUserId, setUpdatingUserId] = useState(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
 
@@ -21,14 +22,7 @@ export default function AdminUserManagement() {
       const data = await apiFetch('/admin/users', {}, 'Failed to load user directory');
       setUsers(data || []);
     } catch (err) {
-      // Fallback sample data representing the 4 system roles for preview purposes
-      setUsers([
-        { id: '1', full_name: 'Samuel Kuria', email: 'samuel@tatuasasa.com', role: 'admin' },
-        { id: '2', full_name: 'Alice Wanjiku', email: 'alice@tatuasasa.com', role: 'supervisor' },
-        { id: '3', full_name: 'Brian Kipkorir', email: 'brian@tatuasasa.com', role: 'technician' },
-        { id: '4', full_name: 'Cynthia Mwangi', email: 'cynthia@tatuasasa.com', role: 'staff' },
-      ]);
-      setError('');
+      setError('Failed to load user directory.');
     } finally {
       setLoading(false);
     }
@@ -36,21 +30,21 @@ export default function AdminUserManagement() {
 
   // Handle Role Promotion or Demotion
   const handleRoleChange = async (userId, newRole) => {
+    setUpdatingUserId(userId);
     try {
       await apiFetch(`/admin/users/${userId}/role`, {
         method: 'PATCH',
         body: JSON.stringify({ role: newRole })
       }, 'Failed to update user role');
 
-      // Update state locally
       setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
       setMessage(`Successfully updated user rank to ${newRole.toUpperCase()}.`);
       setTimeout(() => setMessage(''), 4000);
     } catch (err) {
-      // Fallback local update if backend route is stubbed
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
-      setMessage(`Successfully updated user rank to ${newRole.toUpperCase()}.`);
-      setTimeout(() => setMessage(''), 4000);
+      setError('Failed to update user role.');
+      setTimeout(() => setError(''), 4000);
+    } finally {
+      setUpdatingUserId(null);
     }
   };
 
@@ -130,6 +124,7 @@ export default function AdminUserManagement() {
                     <select 
                       className="rank-action-select"
                       value={user.role}
+                      disabled={updatingUserId === user.id}
                       onChange={(e) => handleRoleChange(user.id, e.target.value)}
                     >
                       <option value="staff">Staff</option>
