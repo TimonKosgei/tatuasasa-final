@@ -63,6 +63,52 @@ def list_pending_applications(current_user=Depends(get_current_user)):
     ]
 
 
+@router.get("/metrics/workload", dependencies=[Depends(require_role("supervisor", "admin"))])
+def get_team_workload(current_user=Depends(get_current_user)):
+    query = supabase_admin.table("profiles").select("id, full_name").eq("role", "technician").eq("is_approved", True)
+    if current_user["profile"]["role"] != "admin":
+        query = query.eq("supervisor_id", current_user["id"])
+    
+    techs = query.execute().data
+    tech_ids = [t["id"] for t in techs]
+
+    tickets = supabase_admin.table("tickets").select("assigned_to, status, priority, is_escalated").in_("assigned_to", tech_ids).execute().data
+    
+    workloads = []
+    for t in techs:
+        tech_t = [x for x in tickets if x["assigned_to"] == t["id"]]
+        workloads.append({
+            "id": t["id"],
+            "name": t["full_name"],
+            "open": sum(1 for x in tech_t if x["status"] == "open"),
+            "in_progress": sum(1 for x in tech_t if x["status"] in ["assigned", "in_progress"]),
+            "resolved": sum(1 for x in tech_t if x["status"] == "resolved"),
+            "escalated": sum(1 for x in tech_t if x["is_escalated"]),
+            "urgent": sum(1 for x in tech_t if x["priority"] in ["urgent", "high"] and x["status"] != "closed"),
+        })
+
+    return workloads
+
+@router.get("/pending-kb", dependencies=[Depends(require_role("supervisor", "admin"))])
+def get_pending_kb_approvals(current_user=Depends(get_current_user)):
+    """
+    Fetch tickets that are marked as 'pending_approval' for the AI knowledge base.
+    If supervisor, fetch their team's tickets.
+    """
+    query = supabase_admin.table("tickets").select("*").eq("kb_published", "pending_approval")
+    
+    if current_user["profile"]["role"] != "admin":
+        # Only show tickets assigned to techs under this supervisor
+        techs_res = supabase_admin.table("profiles").select("id").eq("supervisor_id", current_user["id"]).execute()
+        tech_ids = [t["id"] for t in techs_res.data]
+        if tech_ids:
+            query = query.in_("assigned_to", tech_ids)
+        else:
+            return [] # Empty team
+            
+    res = query.execute()
+    return res.data
+
 @router.get("/technicians", dependencies=[Depends(require_role("supervisor", "admin"))])
 def list_my_technicians(current_user=Depends(get_current_user)):
     """

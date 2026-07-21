@@ -55,7 +55,8 @@ class StatusUpdate(BaseModel):
     status: str
     steps: Optional[list[str]] = None
     comment: Optional[str] = None
-    asset_ids: Optional[list[int]] = None
+    asset_tag: Optional[str] = None
+    publish_requested: Optional[bool] = False
 
     @field_validator("status")
     @classmethod
@@ -239,24 +240,23 @@ async def update_status(
         if payload.comment:
             full_resolution_note += f"### Additional Notes:\n{payload.comment}"
 
-        # Save updates
-        supabase.table("tickets").update({
+        update_data = {
             "status": "resolved",
             "resolved_at": datetime.now(timezone.utc).isoformat(),
             "resolution_notes": full_resolution_note.strip()
-        }).eq("id", ticket_id).execute()
+        }
 
-        # Track linked assets
-        if payload.asset_ids:
-            existing = supabase_admin.table("assets").select("id").in_("id", payload.asset_ids).execute()
-            found_ids = {row["id"] for row in existing.data}
-            missing = set(payload.asset_ids) - found_ids
-            if missing:
-                raise HTTPException(status_code=400, detail=f"Unknown asset id(s): {sorted(missing)}")
+        if payload.publish_requested:
+            update_data["kb_published"] = "pending_approval"
 
-            supabase_admin.table("ticket_assets").delete().eq("ticket_id", ticket_id).execute()
-            rows = [{"ticket_id": ticket_id, "asset_id": aid} for aid in payload.asset_ids]
-            supabase_admin.table("ticket_assets").insert(rows).execute()
+        # Auto-Link asset if asset_tag is provided
+        if payload.asset_tag:
+            asset_res = supabase_admin.table("assets").select("id").eq("asset_tag", payload.asset_tag).execute()
+            if asset_res.data:
+                update_data["asset_id"] = asset_res.data[0]["id"]
+
+        # Save updates
+        supabase.table("tickets").update(update_data).eq("id", ticket_id).execute()
 
         return {"message": "Ticket successfully marked as resolved and logged."}
 

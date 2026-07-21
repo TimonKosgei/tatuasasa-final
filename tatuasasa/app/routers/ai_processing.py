@@ -9,8 +9,8 @@ from google.genai import types
 from concurrent.futures import ThreadPoolExecutor
 
 # Project configurations
-from supabase_client import supabase
-from deps import get_current_user
+from supabase_client import supabase, supabase_admin
+from deps import get_current_user, require_role
 
 router = APIRouter(prefix="/ai", tags=["ai-processing"])
 
@@ -174,6 +174,82 @@ async def upload_pdf_document(
         "status": "processing",
         "check_status_url": f"/ai/upload-status/{job_id}"
     }
+
+# ---- Endpoint C: Download Extracted Database ----
+@router.get("/download-database")
+def download_knowledge_base(current_user = Depends(get_current_user)):
+    """Downloads all manually injected files or vector DB contents"""
+    # Requires Admin clearance
+    if current_user["profile"]["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin permissions required")
+        
+    result = supabase.table("official_documentation").select("title, category, content").execute()
+    return {"records": result.data}
+
+# ---- Endpoint D: Supervisor Approval Workflow ----
+@router.post("/publish-ticket/{ticket_id}", dependencies=[Depends(require_role("supervisor", "admin"))])
+def publish_resolved_ticket(ticket_id: int):
+    """
+    Supervisor verifies a technician's resolution notes and publishes them into the AI Knowledge Base.
+    """
+    ticket_res = supabase_admin.table("tickets").select("*").eq("id", ticket_id).single().execute()
+    if not ticket_res.data:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+        
+    ticket = ticket_res.data
+    if ticket.get("kb_published") == "approved":
+        return {"message": "Ticket is already published to the Knowledge Base."}
+        
+    # Generate Embedding for AI
+    compiled_text = (
+        f"Ticket Title: {ticket['title']}\n"
+        f"Category: {ticket['category']}\n"
+        f"Resolution Notes:\n{ticket['resolution_notes']}"
+    )
+    
+    try:
+        response = ai_client.models.embed_content(
+            model="gemini-embedding-2",
+            contents=compiled_text,
+            config={"output_dimensionality": 768}
+        )
+        embedding_vector = response.embeddings[0].values
+        
+        # Insert into solved_tickets
+        supabase_admin.table("solved_tickets").insert({
+            "ticket_id": ticket_id,
+            "searchable_text": compiled_text,
+            "embedding": embedding_vector
+        }).execute()
+        
+        # Mark ticket as approved
+        supabase_admin.table("tickets").update({
+            "kb_published": "approved"
+        }).eq("id", ticket_id).execute()
+        
+        return {"message": "Ticket resolution published to AI Knowledge Base successfully."}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to publish ticket to AI: {str(e)}")
+
+@router.post("/reject-ticket/{ticket_id}", dependencies=[Depends(require_role("supervisor", "admin"))])
+def reject_resolved_ticket(ticket_id: int):
+    """
+    Supervisor rejects a technician's resolution notes from entering the AI Knowledge Base.
+    """
+    supabase_admin.table("tickets").update({
+        "kb_published": "rejected"
+    }).eq("id", ticket_id).execute()
+    
+    return {"message": "Ticket resolution rejected from AI Knowledge Base."}
+
+@router.get("/ingestion-jobs", dependencies=[Depends(require_role("admin"))])
+def get_ingestion_jobs():
+    """
+    Returns the list of background ingestion jobs for the Admin panel.
+    """
+    res = supabase_admin.table("ingestion_jobs").select("*").order("created_at", desc=True).execute()
+    return res.data
 
 # ---- Endpoint B: Status Polling ----
 @router.get("/upload-status/{job_id}")

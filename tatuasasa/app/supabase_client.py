@@ -1,6 +1,17 @@
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
+import httpx
+import threading
+
+_original_send = httpx.Client.send
+_httpx_lock = threading.Lock()
+
+def _locked_send(self, *args, **kwargs):
+    with _httpx_lock:
+        return _original_send(self, *args, **kwargs)
+
+httpx.Client.send = _locked_send
  
 load_dotenv()
  

@@ -21,9 +21,12 @@ ai_client = genai.Client(
 groq_client = Groq(api_key=GROQ_API_KEY)
 
 
+from typing import Optional
+
 # ---- Pydantic Schemas ----
 class SupportQuery(BaseModel):
     question: str
+    asset_tag: Optional[str] = None
 
     @field_validator("question")
     @classmethod
@@ -67,6 +70,32 @@ def analyze_and_respond(payload: SupportQuery):
     
     context_segments = []
     referenced_sources = []
+
+    # Inject Asset History Context if a specific asset tag is referenced
+    if payload.asset_tag:
+        try:
+            asset_res = supabase.table("assets").select("id, name").eq("asset_tag", payload.asset_tag).execute()
+            if asset_res.data:
+                asset_id = asset_res.data[0]["id"]
+                asset_name = asset_res.data[0]["name"]
+                # Fetch recent resolved tickets for this asset
+                history_res = (
+                    supabase.table("tickets")
+                    .select("title, resolution_notes, resolved_at")
+                    .eq("asset_id", asset_id)
+                    .not_.is_("resolved_at", "null")
+                    .order("resolved_at", desc=True)
+                    .limit(5)
+                    .execute()
+                )
+                if history_res.data:
+                    history_block = f"Maintenance History for Asset {payload.asset_tag} ({asset_name}):\n"
+                    for h in history_res.data:
+                        history_block += f"- [{h['resolved_at'][:10]}] {h['title']}: {h['resolution_notes']}\n"
+                    context_segments.append(history_block)
+                    referenced_sources.append(f"Asset History ({payload.asset_tag})")
+        except Exception as e:
+            print(f"[Asset Context Warning] Failed to fetch asset history: {str(e)}")
     
     # 2. Match intent parameters using your database RPC layers via your shared supabase client
     try:
