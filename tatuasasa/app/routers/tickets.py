@@ -16,7 +16,7 @@ router = APIRouter(prefix="/tickets", tags=["tickets"])
 
 VALID_CATEGORIES = {"hardware", "network", "software", "printers", "security"}
 VALID_PRIORITIES = {"low", "medium", "high", "urgent"}
-VALID_STATUSES = {"open", "assigned", "in_progress", "resolved", "closed"}
+VALID_STATUSES = {"open", "assigned", "in_progress", "resolved", "closed", "escalated"}
 
 
 class TicketCreate(BaseModel):
@@ -169,23 +169,20 @@ async def update_status(
 
     # --- CASE A: TECHNICIAN ESCALATES THE TICKET ---
     if payload.status == "escalated":
-        # 1. Locate the department supervisor for this category
-        category = ticket.data["category"]
-        supervisor_query = (
-            supabase_admin.table("profiles")
-            .select("id, department")
-            .eq("role", "supervisor")
-            .execute()
-        )
+        # 1. Locate the technician's own supervisor (who approved their application)
+        assigned_supervisor = current_user["profile"].get("supervisor_id")
         
-        assigned_supervisor = None
-        for sup in supervisor_query.data:
-            if sup["department"] and sup["department"].lower() in category.lower():
-                assigned_supervisor = sup["id"]
-                break
-        
-        if not assigned_supervisor and supervisor_query.data:
-            assigned_supervisor = supervisor_query.data[0]["id"]
+        if not assigned_supervisor:
+            # Fallback to any supervisor if somehow the technician has none
+            supervisor_query = (
+                supabase_admin.table("profiles")
+                .select("id")
+                .eq("role", "supervisor")
+                .limit(1)
+                .execute()
+            )
+            if supervisor_query.data:
+                assigned_supervisor = supervisor_query.data[0]["id"]
 
         # 2. Re-route to the supervisor, set status back to open, and flag as escalated
         supabase_admin.table("tickets").update({

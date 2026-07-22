@@ -14,14 +14,17 @@ def get_current_user(authorization: str = Header(...)):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
  
-    profile = (
+    profile_response = (
         supabase_admin.table("profiles")
         .select("*")
         .eq("id", user.id)
-        .single()
         .execute()
     )
-    return {"id": user.id, "email": user.email, "profile": profile.data}
+    if not profile_response.data:
+        raise HTTPException(status_code=401, detail="User profile not found")
+    profile_data = profile_response.data[0]
+
+    return {"id": user.id, "email": user.email, "profile": profile_data}
  
  
 def require_role(*allowed_roles):

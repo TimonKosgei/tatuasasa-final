@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './staff-dashboard.css';
 import { apiFetch } from '../../config/api';
+import { supabase } from '../../config/supabaseClient';
 import StaffSettingsPanel from './StaffSettingsPanel';
 import StaffLive from './StaffLive';
 import StaffReports from './StaffReports';
@@ -21,8 +23,10 @@ const PRIORITIES = [
 ];
 
 export default function StaffDashboard() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [applicationPopup, setApplicationPopup] = useState(null); // { status: 'approved' | 'rejected', name: '' }
 
   const [showForm, setShowForm] = useState(false);
   const [tickets, setTickets] = useState([]);
@@ -79,9 +83,41 @@ export default function StaffDashboard() {
     }
   }, []);
 
+  useEffect(() => {
+    let channel;
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel('profile-changes-staff')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` },
+          (payload) => {
+            const oldStatus = payload.old.application_status;
+            const newStatus = payload.new.application_status;
+            const name = payload.new.full_name || 'user';
+            
+            if (oldStatus === 'pending' && newStatus === 'approved') {
+              setApplicationPopup({ status: 'approved', name });
+            } else if (oldStatus === 'pending' && newStatus === 'rejected') {
+              setApplicationPopup({ status: 'rejected', name });
+            }
+          }
+        )
+        .subscribe();
+    };
+    setupRealtime();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
+
   const totalTickets = tickets.length;
   const openTickets = tickets.filter((t) => ['open', 'assigned', 'in_progress'].includes(t.status)).length;
-  const resolvedTickets = tickets.filter((t) => ['resolved', 'closed'].includes(t.status)).length;
+  const completedTickets = tickets.filter((t) => ['resolved', 'closed'].includes(t.status)).length;
 
   async function handleSubmitTicket(e) {
     e.preventDefault();
@@ -135,6 +171,56 @@ export default function StaffDashboard() {
   return (
     <div className="dashboard-container">
       
+      {/* --- ICT APPLICATION POPUP MODAL --- */}
+      {applicationPopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 10000, padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', padding: '30px', borderRadius: '12px',
+            maxWidth: '450px', textAlign: 'center', border: '1px solid var(--border-color)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            {applicationPopup.status === 'approved' ? (
+              <>
+                <div style={{ fontSize: '48px', marginBottom: '15px' }}>🎉</div>
+                <h2 style={{ color: '#10b981', marginBottom: '15px' }}>Application Accepted!</h2>
+                <p style={{ color: 'var(--text-main)', marginBottom: '25px', lineHeight: '1.5' }}>
+                  Congratulations {applicationPopup.name}, your application for ICT Officer has been accepted.
+                  Press continue to get your technician dashboard.
+                </p>
+                <button 
+                  style={{ width: '100%', background: '#10b981', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} 
+                  onClick={async () => {
+                    await supabase.auth.refreshSession();
+                    window.location.href = '/dashboard/technician';
+                  }}
+                >
+                  Continue
+                </button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: '48px', marginBottom: '15px' }}>😔</div>
+                <h2 style={{ color: '#ef4444', marginBottom: '15px' }}>Application Rejected</h2>
+                <p style={{ color: 'var(--text-main)', marginBottom: '25px', lineHeight: '1.5' }}>
+                  Unfortunately {applicationPopup.name}, your application for ICT Officer has been rejected by your supervisor.
+                </p>
+                <button 
+                  className="btn-outline"
+                  style={{ width: '100%' }} 
+                  onClick={() => setApplicationPopup(null)}
+                >
+                  Close
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* --- RIGHT SLIDE-OUT SIDEBAR --- */}
       <div className={`sidebar-overlay ${isMenuOpen ? 'open' : ''}`} onClick={() => setIsMenuOpen(false)}></div>
       <aside className={`app-sidebar ${isMenuOpen ? 'open' : ''}`}>
@@ -211,9 +297,9 @@ export default function StaffDashboard() {
                     <div className="stat-title">Open</div>
                     <div className="stat-value">{openTickets}</div>
                   </div>
-                  <div className="stat-card resolved">
-                    <div className="stat-title">Resolved</div>
-                    <div className="stat-value">{resolvedTickets}</div>
+                  <div className="stat-card completed">
+                    <div className="stat-title">Completed</div>
+                    <div className="stat-value">{completedTickets}</div>
                   </div>
                 </div>
 

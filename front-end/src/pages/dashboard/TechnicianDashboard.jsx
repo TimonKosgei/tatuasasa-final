@@ -122,6 +122,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
   const [published, setPublished] = useState(false);
   const [savedOnly, setSavedOnly] = useState(false);
   const [submittingAction, setSubmittingAction] = useState(null); // "accept", "reject", "escalate", "resolve_publish", "resolve_save", "ask_ai"
+  const [showEscalatePopup, setShowEscalatePopup] = useState(false);
   const stepRefs = useRef([]);
   const ticketId = job.ticketId ?? job.id;
 
@@ -275,6 +276,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
     try {
       await onEscalate?.(ticketId);
       setStage("escalated");
+      setShowEscalatePopup(true);
     } catch (err) {
       // Keep the UI state unchanged if the API call fails.
     } finally {
@@ -328,7 +330,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
     }
   };
 
-  const resolved = published || savedOnly;
+  const completed = published || savedOnly;
 
   const statusLabel = {
     pending: "Awaiting response",
@@ -336,18 +338,44 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
     working: "In progress",
     resolving: "In progress",
     escalated: "Escalated",
-  }[stage] || (resolved ? "Resolved" : "In progress");
+  }[stage] || (completed ? "Completed" : "In progress");
 
   const statusStyle = {
     pending: { background: "var(--color-line)", color: "var(--color-muted)" },
     rejected: { background: "#fbeaea", color: "#a32d2d" },
     escalated: { background: "#faeeda", color: "#854f0b" },
-  }[stage] || (resolved
+  }[stage] || (completed
     ? { background: "#eaf3de", color: "#27500a" }
     : { background: "#e6f1fb", color: "#185fa5" });
 
   return (
     <div className="p-4 sm:p-5">
+      {/* Escalate Popup */}
+      {showEscalatePopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 10000, padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card, #fff)', padding: '30px', borderRadius: '12px',
+            maxWidth: '450px', textAlign: 'center', border: '1px solid var(--border-color, #e5e7eb)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '15px' }}>🚨</div>
+            <h2 style={{ color: '#854f0b', marginBottom: '15px', fontWeight: 'bold' }}>Issue Escalated</h2>
+            <p style={{ color: 'var(--text-main, #333)', marginBottom: '25px', lineHeight: '1.5' }}>
+              This ticket has been successfully escalated to the supervisor for further review.
+            </p>
+            <button 
+              style={{ width: '100%', background: '#854f0b', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} 
+              onClick={() => setShowEscalatePopup(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-[16px] font-semibold">{job.title}</p>
@@ -357,7 +385,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
           </p>
         </div>
         <span className="w-fit px-3 py-1 text-[12px] font-medium" style={statusStyle}>
-          {resolved ? "Resolved" : statusLabel}
+          {completed ? "Completed" : statusLabel}
         </span>
       </div>
 
@@ -463,7 +491,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
               onChange={(e) => setAssetNumber(e.target.value)}
               placeholder="Search by asset tag or name..."
               className="mt-2 w-full border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
-              disabled={resolved}
+              disabled={completed}
             />
             <datalist id="assets-list">
               {assetsList.map((a) => (
@@ -496,16 +524,16 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
             {aiAsked && <div className="mt-3 text-[13px] text-[var(--color-muted)] bg-[#f7f7f7] p-3 border border-dashed border-[#e2e8f0] rounded">{formatAiResponse(aiInput)}</div>}
           </div>
 
-          {!resolved && stage !== "resolving" && (
+          {!completed && stage !== "resolving" && (
             <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: "#e6f1fb" }}>
               <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#185fa5" }} />
               <span className="text-[13px]" style={{ color: "#185fa5" }}>
-                In progress — {job.staffName} will be notified once this is resolved
+                In progress — {job.staffName} will be notified once this is completed
               </span>
             </div>
           )}
 
-          {!resolved && stage !== "resolving" && (
+          {!completed && stage !== "resolving" && (
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={handleEscalate}
@@ -521,12 +549,12 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
                 className="flex-1 border py-2.5 text-[14px] font-semibold disabled:opacity-50"
                 style={{ background: accent, borderColor: accent, color: onAccent }}
               >
-                Mark as resolved
+                Mark as completed
               </button>
             </div>
           )}
 
-          {stage === "resolving" && !resolved && (
+          {stage === "resolving" && !completed && (
             <div className="bg-[#f7f7f7] p-4">
               <p className="text-[15px] font-semibold">Add this to the knowledge base</p>
 
@@ -587,7 +615,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
             <p className="text-[13px] text-[#27500a]">Article added to the knowledge base.</p>
           )}
 
-          {resolved && (
+          {completed && (
             <div className="bg-[#eaf3de] p-3">
               <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#27500a]">
                 Feedback from {job.staffName}
@@ -687,6 +715,7 @@ export default function TechnicianDashboard() {
   
   const [isTogglingAvailability, setIsTogglingAvailability] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [escalationSuccessPopup, setEscalationSuccessPopup] = useState(false);
 
   const accent = greenTheme ? "#0B3D2E" : "#0b0b0b";
   const onAccent = "#ffffff";
@@ -807,6 +836,7 @@ export default function TechnicianDashboard() {
       "Failed to escalate the ticket"
     );
     setJobs(jobs => jobs.filter(j => j.id !== ticketId));
+    setEscalationSuccessPopup(true);
   };
 
   const handleResolveTicket = async ({ ticketId, steps, comment, assetTag, publishRequested }) => {
@@ -822,7 +852,7 @@ export default function TechnicianDashboard() {
           publish_requested: publishRequested
         }),
       },
-      "Failed to mark the ticket as resolved"
+      "Failed to mark the ticket as completed"
     );
     setJobs(jobs => jobs.filter(j => j.id !== ticketId));
   };
@@ -887,14 +917,7 @@ export default function TechnicianDashboard() {
     <div className="relative min-h-screen overflow-x-hidden">
       {/* Top bar */}
       <div className="mx-auto flex max-w-[1000px] items-center justify-between gap-3 px-4 py-5 sm:px-6">
-        <div>
-          <p className="text-[13px] font-medium text-[var(--color-muted)]">Tatua Sasa</p>
-          <h1 className="mt-0.5 text-[20px] font-bold tracking-tight sm:text-[24px]">
-            Welcome, {name}
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <StatusToggle active={active} onToggle={handleAvailabilityToggle} accent={accent} isTogglingAvailability={isTogglingAvailability} />
+        <div className="flex items-center gap-4">
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Open menu"
@@ -904,6 +927,15 @@ export default function TechnicianDashboard() {
             <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
             <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
           </button>
+          <div>
+            <p className="text-[13px] font-medium text-[var(--color-muted)]">Tatua Sasa</p>
+            <h1 className="mt-0.5 text-[20px] font-bold tracking-tight sm:text-[24px]">
+              Welcome, {name}
+            </h1>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusToggle active={active} onToggle={handleAvailabilityToggle} accent={accent} isTogglingAvailability={isTogglingAvailability} />
         </div>
       </div>
 
@@ -1114,10 +1146,10 @@ export default function TechnicianDashboard() {
         }`}
       />
 
-      {/* Navigation drawer - slides in from the right */}
+      {/* Navigation drawer - slides in from the left */}
       <div
-        className={`fixed right-0 top-0 z-50 h-full w-3/4 max-w-[320px] transform rounded-l-2xl bg-[var(--color-bg)] shadow-2xl transition-transform duration-300 ease-in-out md:w-[320px] ${
-          drawerOpen ? "translate-x-0" : "translate-x-full"
+        className={`fixed left-0 top-0 z-50 h-full w-3/4 max-w-[320px] transform rounded-r-2xl bg-[var(--color-bg)] shadow-2xl transition-transform duration-300 ease-in-out md:w-[320px] ${
+          drawerOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between border-b border-[var(--color-line)] p-5">
@@ -1178,6 +1210,33 @@ export default function TechnicianDashboard() {
           </button>
         </div>
       </div>
+
+      {/* GLOBAL ESCALATION SUCCESS POPUP */}
+      {escalationSuccessPopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 10000, padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card, #fff)', padding: '30px', borderRadius: '12px',
+            maxWidth: '450px', textAlign: 'center', border: '1px solid var(--border-color, #e5e7eb)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '15px' }}>🚨</div>
+            <h2 style={{ color: '#854f0b', marginBottom: '15px', fontWeight: 'bold' }}>Issue Escalated</h2>
+            <p style={{ color: 'var(--text-main, #333)', marginBottom: '25px', lineHeight: '1.5' }}>
+              This ticket has been successfully escalated to your supervisor for further review.
+            </p>
+            <button 
+              style={{ width: '100%', background: '#854f0b', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} 
+              onClick={() => setEscalationSuccessPopup(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

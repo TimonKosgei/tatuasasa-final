@@ -39,7 +39,7 @@
   border-top-color: #ef4444;
 }
 
-.admin-stat-card.resolved {
+.admin-stat-card.completed {
   border-top-color: var(--brand-text);
 }
 

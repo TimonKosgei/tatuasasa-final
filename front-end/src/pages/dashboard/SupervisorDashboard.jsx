@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 // Import your authentic live API client helper
 import { apiFetch } from "../../config/api"; 
+import { supabase } from "../../config/supabaseClient";
 import './admin-livequeue.css';
 
 /* ---------------- SHARED PIECES (UI structures preserved exactly) ---------------- */
@@ -96,6 +97,7 @@ export default function SupervisorDashboard() {
   const [pendingKb, setPendingKb] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [escalatedPopupData, setEscalatedPopupData] = useState(null);
 
   const accent = greenTheme ? "#0B3D2E" : "#0b0b0b";
   const onAccent = "#ffffff";
@@ -135,6 +137,33 @@ export default function SupervisorDashboard() {
     fetchDashboardData();
   }, [view]);
 
+  useEffect(() => {
+    let channel;
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      channel = supabase
+        .channel('supervisor-escalations')
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'tickets', filter: `assigned_to=eq.${user.id}` },
+          (payload) => {
+            // Check if is_escalated transitioned to true
+            if (payload.new.is_escalated && !payload.old.is_escalated) {
+                setEscalatedPopupData(payload.new);
+            }
+          }
+        )
+        .subscribe();
+    };
+    setupRealtime();
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, []);
+
   const goTo = (key) => {
     setView(key);
     setDrawerOpen(false);
@@ -150,7 +179,7 @@ export default function SupervisorDashboard() {
   const totalCount = tickets.length;
   const waitingCount = tickets.filter((t) => t.status === "open").length;
   const progressCount = tickets.filter((t) => t.status === "in_progress").length;
-  const resolvedCount = tickets.filter((t) => t.status === "resolved").length;
+  const completedCount = tickets.filter((t) => t.status === "resolved").length;
   const highPriorityCount = tickets.filter((t) => t.priority === "high" || t.priority === "urgent").length;
   const escalatedCount = tickets.filter((t) => t.is_escalated).length;
   const activeTechsCount = techniciansList.filter((t) => t.is_online).length;
@@ -159,7 +188,7 @@ export default function SupervisorDashboard() {
     { label: "Total tickets", value: totalCount },
     { label: "Waiting", value: waitingCount },
     { label: "In progress", value: progressCount },
-    { label: "Resolved", value: resolvedCount },
+    { label: "Completed", value: completedCount },
     { label: "High priority", value: highPriorityCount },
     { label: "Escalated Issues", value: escalatedCount },
     { label: "Active technicians", value: activeTechsCount },
@@ -167,12 +196,14 @@ export default function SupervisorDashboard() {
 
   /* ---------------- INTERACTIVE HANDLERS ---------------- */
   const [submittingAction, setSubmittingAction] = useState(null);
+  const [actionSuccessPopup, setActionSuccessPopup] = useState(null);
 
   const handleApproveApp = async (userId) => {
     setSubmittingAction({ type: "approve_app", id: userId });
     try {
       await apiFetch(`/supervisor/applications/${userId}/approve`, { method: "POST" });
       await fetchDashboardData();
+      setActionSuccessPopup({ title: "Application Approved", message: "The staff member has been successfully approved as an ICT Officer." });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -185,6 +216,7 @@ export default function SupervisorDashboard() {
     try {
       await apiFetch(`/supervisor/applications/${userId}/reject`, { method: "POST" });
       await fetchDashboardData();
+      setActionSuccessPopup({ title: "Application Rejected", message: "The staff member's application has been rejected." });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -236,7 +268,7 @@ export default function SupervisorDashboard() {
     try {
       await apiFetch(`/tickets/${ticketId}/status`, {
         method: "PATCH",
-        body: JSON.stringify({ status: "resolved", comment: "Resolved manually by Supervisor." }),
+        body: JSON.stringify({ status: "resolved", comment: "Marked completed manually by Supervisor." }),
       });
       await fetchDashboardData();
     } catch (err) {
@@ -250,12 +282,23 @@ export default function SupervisorDashboard() {
     <div className="relative min-h-screen overflow-x-hidden">
       {/* Top bar */}
       <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-5 sm:px-6">
-        <div>
-          <p className="text-[13px] font-medium text-[var(--color-muted)]">Tatua Sasa</p>
-          <h1 className="mt-0.5 text-[20px] font-bold tracking-tight sm:text-[24px]">
-            Welcome, {name || "loading..."}
-          </h1>
-          <p className="mt-1 text-[12px] text-[var(--color-muted)]">{dateStr} — {timeStr}</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 rounded-lg border border-[var(--color-line)]"
+          >
+            <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
+            <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
+            <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
+          </button>
+          <div>
+            <p className="text-[13px] font-medium text-[var(--color-muted)]">Tatua Sasa</p>
+            <h1 className="mt-0.5 text-[20px] font-bold tracking-tight sm:text-[24px]">
+              Welcome, {name || "loading..."}
+            </h1>
+            <p className="mt-1 text-[12px] text-[var(--color-muted)]">{dateStr} — {timeStr}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {error && <span className="text-red-500 text-xs hidden sm:inline">{error}</span>}
@@ -271,15 +314,6 @@ export default function SupervisorDashboard() {
             >
               {pendingApps.length}
             </span>
-          </button>
-          <button
-            onClick={() => setDrawerOpen(true)}
-            aria-label="Open menu"
-            className="flex h-10 w-10 flex-col items-center justify-center gap-1.5 rounded-lg border border-[var(--color-line)]"
-          >
-            <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
-            <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
-            <span className="h-[1.5px] w-4 bg-[var(--color-ink)]" />
           </button>
         </div>
       </div>
@@ -452,7 +486,13 @@ export default function SupervisorDashboard() {
                             {t.resolution_notes}
                           </div>
                         ) : (
-                          <span className="text-gray-400 text-xs">-</span>
+                          <button 
+                            onClick={() => handleManualResolve(t.id)}
+                            className="px-2.5 py-1 text-[11px] font-semibold rounded border border-[#27500a] text-[#27500a] hover:bg-[#27500a] hover:text-white transition-colors"
+                            disabled={submittingAction?.id === t.id}
+                          >
+                            Mark as completed
+                          </button>
                         )}
                       </td>
                       <td><StatusPill status={t.priority} /></td>
@@ -473,7 +513,7 @@ export default function SupervisorDashboard() {
         {view === "reports" && (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <KpiCard label="Average Resolution Rate" value={`${totalCount > 0 ? ((resolvedCount / totalCount) * 100).toFixed(0) : 0}%`} />
+              <KpiCard label="Average Completion Rate" value={`${totalCount > 0 ? ((completedCount / totalCount) * 100).toFixed(0) : 0}%`} />
               <KpiCard label="Urgent Tickets Open" value={highPriorityCount} />
               <KpiCard label="SLA Compliance Score" value="98%" />
             </div>
@@ -599,7 +639,7 @@ export default function SupervisorDashboard() {
                                 disabled={submittingAction !== null}
                                 className="rounded border px-2 py-1 text-[11px] font-semibold bg-[#eaf3de] text-[#27500a] border-[#27500a] hover:bg-[#d8eabf] disabled:opacity-50"
                               >
-                                {submittingAction?.type === "manual_resolve" && submittingAction?.id === t.id ? "Resolving..." : "Mark Resolved"}
+                                {submittingAction?.type === "manual_resolve" && submittingAction?.id === t.id ? "Resolving..." : "Mark Completed"}
                               </button>
                               <select
                                 onChange={(evt) => handleReassignTicket(t.id, evt.target.value)}
@@ -754,6 +794,69 @@ export default function SupervisorDashboard() {
           </button>
         </div>
       </div>
+
+      {/* SUPERVISOR ESCALATED POPUP */}
+      {escalatedPopupData && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 10000, padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card, #fff)', padding: '30px', borderRadius: '12px',
+            maxWidth: '450px', textAlign: 'center', border: '1px solid var(--border-color, #e5e7eb)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '15px' }}>⚠️</div>
+            <h2 style={{ color: '#854f0b', marginBottom: '15px', fontWeight: 'bold' }}>New Escalonation</h2>
+            <p style={{ color: 'var(--text-main, #333)', marginBottom: '25px', lineHeight: '1.5' }}>
+              A new issue titled "{escalatedPopupData.title}" has been escalated by a technician to your queue. Please check it out in the "Escalated Issues" tab.
+            </p>
+            <button 
+              style={{ width: '100%', background: '#854f0b', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} 
+              onClick={() => {
+                setEscalatedPopupData(null);
+                goTo("escalated");
+              }}
+            >
+              View Escalated Issue
+            </button>
+            <button
+               style={{ width: '100%', background: 'transparent', color: '#6e6e6e', padding: '10px 20px', border: 'none', cursor: 'pointer', marginTop: '10px' }}
+               onClick={() => setEscalatedPopupData(null)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SUPERVISOR ACTION SUCCESS POPUP */}
+      {actionSuccessPopup && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)', display: 'flex',
+          justifyContent: 'center', alignItems: 'center', zIndex: 10000, padding: '20px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card, #fff)', padding: '30px', borderRadius: '12px',
+            maxWidth: '450px', textAlign: 'center', border: '1px solid var(--border-color, #e5e7eb)',
+            boxShadow: '0 10px 25px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ fontSize: '48px', marginBottom: '15px' }}>✅</div>
+            <h2 style={{ color: '#27500a', marginBottom: '15px', fontWeight: 'bold' }}>{actionSuccessPopup.title}</h2>
+            <p style={{ color: 'var(--text-main, #333)', marginBottom: '25px', lineHeight: '1.5' }}>
+              {actionSuccessPopup.message}
+            </p>
+            <button 
+              style={{ width: '100%', background: '#27500a', color: '#fff', padding: '10px 20px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }} 
+              onClick={() => setActionSuccessPopup(null)}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

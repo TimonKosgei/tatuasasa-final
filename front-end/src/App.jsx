@@ -84,16 +84,11 @@ export default function App() {
           />
           <Route
             path="/login"
-            element={<StubPage title="Log in / Sign up" blurb="Account access is coming soon." />}
+            element={<Navigate to="/auth/login" replace />}
           />
           <Route
             path="/get-started"
-            element={
-              <StubPage
-                title="Try Tatua Sasa for free"
-                blurb="Sign-up flow coming soon. Thanks for your interest!"
-              />
-            }
+            element={<Navigate to="/auth/signup" replace />}
           />
 
           {/*auth routes*/}

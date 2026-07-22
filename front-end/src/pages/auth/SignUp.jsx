@@ -179,7 +179,7 @@ export default function SignUp() {
 
         <div className="auth-links">
           <p>
-            Already have an account? <Link to="/" className="link">Log In</Link>
+            Already have an account? <Link to="/auth/login" className="link">Log In</Link>
           </p>
         </div>
       </form>

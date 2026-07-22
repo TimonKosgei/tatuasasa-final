@@ -213,7 +213,7 @@
 }
 
 .stat-card.pending { border-top-color: #ef4444; } 
-.stat-card.resolved { border-top-color: var(--brand-text); }
+.stat-card.completed { border-top-color: var(--brand-text); }
 
 .stat-title {
   font-size: 13px;

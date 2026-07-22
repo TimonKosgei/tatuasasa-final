@@ -7,7 +7,7 @@ export default function AdminOverview() {
     totalUsers: 0,
     totalTickets: 0,
     openTickets: 0,
-    resolvedTickets: 0,
+    completedTickets: 0,
     activeTechnicians: 0,
     totalAssets: 0,
     assetsUnderRepair: 0
@@ -25,7 +25,7 @@ export default function AdminOverview() {
           totalUsers: data.total_users || 0,
           totalTickets: data.total_tickets || 0,
           openTickets: data.open_tickets || 0,
-          resolvedTickets: data.resolved_tickets || 0,
+          completedTickets: data.completed_tickets || 0,
           activeTechnicians: data.active_technicians || 0,
           totalAssets: data.total_assets || 0,
           assetsUnderRepair: data.assets_under_repair || 0
@@ -73,9 +73,9 @@ export default function AdminOverview() {
           <div className="admin-stat-desc">Require technician attention</div>
         </div>
 
-        <div className="admin-stat-card resolved">
-          <div className="admin-stat-title">Resolved Issues</div>
-          <div className="admin-stat-value">{stats.resolvedTickets}</div>
+        <div className="admin-stat-card completed">
+          <div className="admin-stat-title">Completed Issues</div>
+          <div className="admin-stat-value">{stats.completedTickets}</div>
           <div className="admin-stat-desc">Successfully closed tickets</div>
         </div>
 
