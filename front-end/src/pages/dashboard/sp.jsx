@@ -560,7 +560,7 @@ const navItems = [
 ];
 
 export default function Supervisor() {
-  const [name, setName] = useState("Esther");
+  const [name, setName] = useState("");
   const [greenTheme, setGreenTheme] = useState(true);
   const [view, setView] = useState("dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);

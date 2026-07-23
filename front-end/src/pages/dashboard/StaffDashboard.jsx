@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './staff-dashboard.css';
 import { apiFetch } from '../../config/api';
@@ -21,6 +21,81 @@ const PRIORITIES = [
   { value: 'high', label: 'High' },
   { value: 'urgent', label: 'Urgent' },
 ];
+
+const StatusSteps = ({ status }) => {
+  if (status === 'resolved' || status === 'closed') {
+    return (
+      <div className="status-steps-container">
+        <div className="step-wrapper active">
+          <div className="step-column">
+            <div className="step-circle" style={{ backgroundColor: '#10b981', borderColor: '#10b981' }}>
+              <svg className="step-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <span className="step-label-text" style={{ color: '#10b981', fontWeight: 'bold' }}>Completed</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const steps = [
+    { id: 'open', label: 'Open', icon: '1', color: '#ef4444' },
+    { id: 'assigned', label: 'Assigned', icon: '2', color: '#f59e0b' },
+    { id: 'in_progress', label: 'In Progress', icon: '3', color: '#3b82f6' },
+    { id: 'resolved', label: 'Completed', icon: '4', color: '#10b981' }
+  ];
+
+  let currentStepIndex = 0;
+  if (status === 'open') currentStepIndex = 0;
+  else if (status === 'assigned') currentStepIndex = 1;
+  else if (status === 'in_progress') currentStepIndex = 2;
+
+  return (
+    <div className="status-steps-container">
+      {steps.map((step, index) => {
+        const isActive = index <= currentStepIndex;
+        const isLast = index === steps.length - 1;
+        
+        return (
+          <div key={step.id} className={`step-wrapper ${isActive ? 'active' : ''}`}>
+            <div className="step-column">
+              <div 
+                className="step-circle" 
+                title={step.label}
+                style={{ 
+                  backgroundColor: isActive ? step.color : '', 
+                  borderColor: isActive ? step.color : '' 
+                }}
+              >
+                {isActive ? (
+                  <svg className="step-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>
+                ) : (
+                  <span className="step-number">{step.icon}</span>
+                )}
+              </div>
+              <span 
+                className="step-label-text" 
+                style={{ color: isActive ? step.color : 'var(--text-muted)' }}
+              >
+                {step.label}
+              </span>
+            </div>
+            {!isLast && (
+              <div 
+                className={`step-line ${index < currentStepIndex ? 'active' : ''}`}
+                style={{ backgroundColor: index < currentStepIndex ? step.color : '' }}
+              ></div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
@@ -83,6 +158,11 @@ export default function StaffDashboard() {
     }
   }, []);
 
+  const ticketsRef = useRef(tickets);
+  useEffect(() => {
+    ticketsRef.current = tickets;
+  }, [tickets]);
+
   useEffect(() => {
     let channel;
     const setupRealtime = async () => {
@@ -107,11 +187,31 @@ export default function StaffDashboard() {
           }
         )
         .subscribe();
+
+      const ticketChannel = supabase
+        .channel('tickets-staff-listener')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'tickets' },
+          (payload) => {
+            const targetId = String(payload.new?.id || payload.old?.id);
+            const exists = ticketsRef.current.some(t => String(t.id) === targetId);
+            if (exists || payload.new?.submitted_by === user.id) {
+              loadTickets();
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+        supabase.removeChannel(ticketChannel);
+      };
     };
-    setupRealtime();
+    const cleanup = setupRealtime();
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      cleanup.then(unsub => unsub && unsub());
     };
   }, []);
 
@@ -320,9 +420,7 @@ export default function StaffDashboard() {
                             <td>{ticket.title}</td>
                             <td>{new Date(ticket.created_at).toLocaleDateString()}</td>
                             <td>
-                              <span className={`status-badge status-${ticket.status}`}>
-                                {ticket.status.replace('_', ' ')}
-                              </span>
+                              <StatusSteps status={ticket.status} />
                             </td>
                           </tr>
                         ))

@@ -689,8 +689,8 @@ function SkillsPanel({ skills, onAddSkill }) {
 }
 
 export default function TechnicianDashboard() {
-  const [name, setName] = useState("Esther");
-  const [nameInput, setNameInput] = useState("Esther");
+  const [name, setName] = useState("");
+  const [nameInput, setNameInput] = useState("");
   const [bio, setBio] = useState("Field technician specialising in networking and hardware repair.");
   const [avatar, setAvatar] = useState("headset");
   const [active, setActive] = useState(false);
@@ -775,7 +775,52 @@ export default function TechnicianDashboard() {
       }
     };
 
+    const setupRealtime = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const channel = supabase.channel('technician_tickets')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'tickets' },
+          (payload) => {
+            const isNewAssignment = 
+              (payload.eventType === 'INSERT' && payload.new.assigned_to === user.id && payload.new.status === 'assigned') ||
+              (payload.eventType === 'UPDATE' && payload.new.assigned_to === user.id && payload.new.status === 'assigned' && payload.old?.status !== 'assigned');
+            
+            if (isNewAssignment) {
+              playNotificationSound();
+              if ("Notification" in window && Notification.permission === "granted") {
+                new Notification("New Ticket Assigned!", {
+                  body: `Ticket #${payload.new.id}: ${payload.new.title || "Support Request"}`,
+                  icon: "/favicon.svg"
+                });
+              }
+              // Refresh the dashboard data to load the new ticket correctly
+              // loadDashboardData(); 
+              // Better to just push the new ticket into the active queue to avoid heavy network requests
+              setJobs(prev => {
+                // avoid duplicates
+                if (prev.some(j => j.id === payload.new.id)) return prev;
+                const newJob = buildJobFromTicket(payload.new);
+                return [newJob, ...prev];
+              });
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    };
+
     loadDashboardData();
+    const cleanup = setupRealtime();
+    
+    return () => {
+      cleanup.then(unsub => unsub && unsub());
+    };
   }, []);
 
   const goTo = (key) => {
@@ -784,6 +829,12 @@ export default function TechnicianDashboard() {
   };
 
   const handleAvailabilityToggle = async () => {
+    // Web Audio API needs a user gesture to unlock
+    playNotificationSound(true); 
+    
+    if (!active && "Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
     const nextState = !active;
     setIsTogglingAvailability(true);
     try {

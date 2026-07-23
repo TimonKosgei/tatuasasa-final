@@ -356,3 +356,67 @@
     font-size: 1.2rem; 
   }
 }
+
+/* Status Steps Indicator */
+.status-steps-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  padding: 5px 0;
+}
+
+.step-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.step-column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.step-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  transition: all 0.3s ease;
+  z-index: 2;
+}
+
+.step-number {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-muted);
+}
+
+.step-wrapper.active .step-number {
+  color: white;
+}
+
+.step-check {
+  width: 14px;
+  height: 14px;
+  stroke: white;
+}
+
+.step-line {
+  width: 30px;
+  height: 2px;
+  background: var(--border-color);
+  margin-top: -16px; /* align with the circle visually, accounting for text below */
+  transition: background 0.3s ease;
+  z-index: 1;
+}
+
+.step-label-text {
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}

@@ -130,6 +130,16 @@ async def auto_assign_ticket_to_best_tech(ticket_id: int, last_tech_id: str = No
         # Schedule the 3-minute check if background_tasks context is provided
         if background_tasks:
             background_tasks.add_task(check_assignment_timeout, ticket_id, next_best_tech["id"])
+            
+            # Send Email Notification
+            tech_user = supabase_admin.auth.admin.get_user_by_id(next_best_tech["id"])
+            if tech_user and tech_user.user and tech_user.user.email:
+                tech_profile = supabase_admin.table("profiles").select("full_name").eq("id", next_best_tech["id"]).single().execute()
+                tech_name = tech_profile.data.get("full_name", "Technician") if tech_profile.data else "Technician"
+                from services.email_service import send_assignment_notification
+                ticket_info = supabase_admin.table("tickets").select("title").eq("id", ticket_id).single().execute()
+                ticket_title = ticket_info.data.get("title", f"Ticket #{ticket_id}") if ticket_info.data else f"Ticket #{ticket_id}"
+                background_tasks.add_task(send_assignment_notification, tech_user.user.email, tech_name, ticket_id, ticket_title)
         
         return {"assigned_to": next_best_tech["id"], "role": "technician"}
     

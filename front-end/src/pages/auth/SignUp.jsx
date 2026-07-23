@@ -48,7 +48,7 @@ export default function SignUp() {
       
       // Give them a bit more time (e.g., 4 seconds) to read it before routing away
       setTimeout(() => {
-        navigate('/'); 
+        navigate('/auth/login'); 
       }, 4000);
       
     } catch (err) {

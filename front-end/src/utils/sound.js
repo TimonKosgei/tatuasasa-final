@@ -1,6 +1,6 @@
 let audioCtx = null;
 
-export const playNotificationSound = () => {
+export const playNotificationSound = (silentInit = false) => {
   try {
     if (!audioCtx) {
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -9,6 +9,8 @@ export const playNotificationSound = () => {
     if (audioCtx.state === 'suspended') {
       audioCtx.resume();
     }
+
+    if (silentInit) return; // Just wake up the audio context
 
     const oscillator = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();

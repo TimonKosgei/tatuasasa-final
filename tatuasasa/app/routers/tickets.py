@@ -255,6 +255,17 @@ async def update_status(
         # Save updates
         supabase.table("tickets").update(update_data).eq("id", ticket_id).execute()
 
+        # Send completion notification
+        staff_id = ticket.data.get("submitted_by")
+        if staff_id:
+            staff_user = supabase_admin.auth.admin.get_user_by_id(staff_id)
+            if staff_user and staff_user.user and staff_user.user.email:
+                staff_profile = supabase_admin.table("profiles").select("full_name").eq("id", staff_id).single().execute()
+                staff_name = staff_profile.data.get("full_name", "Staff Member") if staff_profile.data else "Staff Member"
+                from services.email_service import send_completion_notification
+                ticket_title = ticket.data.get("title", f"Ticket #{ticket_id}")
+                background_tasks.add_task(send_completion_notification, staff_user.user.email, staff_name, ticket_id, ticket_title)
+
         return {"message": "Ticket successfully marked as resolved and logged."}
 
     # --- CASE D: DEFAULT STATUS TRANSITIONS (E.G. IN_PROGRESS) ---
@@ -303,6 +314,18 @@ async def manual_assign(
         ticket_id=ticket_id,
         background_tasks=background_tasks
     )
+
+    # Note: auto_assign_ticket_to_best_tech does NOT handle sending the email for manual assign if we override assigned_to before calling it.
+    # Actually, auto_assign_ticket_to_best_tech will reassign it. We should just let auto_assign... oh wait, if we manually assign, why are we calling auto_assign_ticket_to_best_tech?
+    # Because auto_assign sets up the 3-minute timer. Let's send the manual assignment email directly here.
+    tech_user = supabase_admin.auth.admin.get_user_by_id(payload.technician_id)
+    if tech_user and tech_user.user and tech_user.user.email:
+        tech_profile = supabase_admin.table("profiles").select("full_name").eq("id", payload.technician_id).single().execute()
+        tech_name = tech_profile.data.get("full_name", "Technician") if tech_profile.data else "Technician"
+        from services.email_service import send_assignment_notification
+        ticket_info = supabase_admin.table("tickets").select("title").eq("id", ticket_id).single().execute()
+        ticket_title = ticket_info.data.get("title", f"Ticket #{ticket_id}") if ticket_info.data else f"Ticket #{ticket_id}"
+        background_tasks.add_task(send_assignment_notification, tech_user.user.email, tech_name, ticket_id, ticket_title)
 
     return {"message": "Ticket reassigned and 3-minute monitoring timer configured."}
 
