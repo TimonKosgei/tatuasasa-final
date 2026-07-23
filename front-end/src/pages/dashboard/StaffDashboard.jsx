@@ -4,7 +4,7 @@ import './staff-dashboard.css';
 import { apiFetch } from '../../config/api';
 import { supabase } from '../../config/supabaseClient';
 import StaffSettingsPanel from './StaffSettingsPanel';
-import StaffLive from './StaffLive';
+import StaffLivePopup from './StaffLive';
 import StaffReports from './StaffReports';
 
 const CATEGORIES = [
@@ -102,6 +102,7 @@ export default function StaffDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [applicationPopup, setApplicationPopup] = useState(null); // { status: 'approved' | 'rejected', name: '' }
+  const [activeChatTicket, setActiveChatTicket] = useState(null);
 
   const [showForm, setShowForm] = useState(false);
   const [tickets, setTickets] = useState([]);
@@ -332,9 +333,6 @@ export default function StaffDashboard() {
           <button className={`sidebar-nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => handleNavClick('dashboard')}>
             Dashboard
           </button>
-          <button className={`sidebar-nav-btn ${activeTab === 'live_comm' ? 'active' : ''}`} onClick={() => handleNavClick('live_comm')}>
-            Live Communication
-          </button>
           <button className={`sidebar-nav-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => handleNavClick('reports')}>
             Reports
           </button>
@@ -407,7 +405,7 @@ export default function StaffDashboard() {
                 <div className="table-responsive">
                   <table className="ticket-table">
                     <thead>
-                      <tr><th>Subject</th><th>Date</th><th>Status</th></tr>
+                      <tr><th>Subject</th><th>Date</th><th>Status</th><th style={{ textAlign: 'center' }}>Actions</th></tr>
                     </thead>
                     <tbody>
                       {loading ? (
@@ -421,6 +419,17 @@ export default function StaffDashboard() {
                             <td>{new Date(ticket.created_at).toLocaleDateString()}</td>
                             <td>
                               <StatusSteps status={ticket.status} />
+                            </td>
+                            <td style={{ textAlign: 'center', verticalAlign: 'middle' }}>
+                              <button 
+                                className="primary-btn" 
+                                style={{ padding: '6px 12px', fontSize: '12px', opacity: ticket.assigned_to ? 1 : 0.5, cursor: ticket.assigned_to ? 'pointer' : 'not-allowed' }}
+                                disabled={!ticket.assigned_to}
+                                title={ticket.assigned_to ? "Open live chat" : "Waiting for technician assignment"}
+                                onClick={() => setActiveChatTicket(ticket)}
+                              >
+                                Live Chat
+                              </button>
                             </td>
                           </tr>
                         ))
@@ -477,11 +486,9 @@ export default function StaffDashboard() {
           </div>
         )}
 
-        {/* --- LIVE COMMUNICATION INJECTION --- */}
-        {activeTab === 'live_comm' && (
-          <div className="tab-content" style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
-            <StaffLive />
-          </div>
+        {/* --- FLOATING CHAT POPUP --- */}
+        {activeChatTicket && (
+          <StaffLivePopup ticket={activeChatTicket} onClose={() => setActiveChatTicket(null)} />
         )}
 
         {/* --- REPORTS TAB --- */}

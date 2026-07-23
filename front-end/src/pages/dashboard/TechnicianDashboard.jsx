@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "../../config/api";
 import { supabase } from "../../config/SupabaseClient";
 import { playNotificationSound } from "../../utils/sound";
+import "./stafflive.css";
 import './admin-livequeue.css';
 
 const formatAiResponse = (text) => {
@@ -41,7 +42,7 @@ function buildJobFromTicket(ticket) {
     title: ticket.title || "Support request",
     ticket: `Ticket #${ticket.id}`,
     location: locationParts.length ? locationParts.join(", ") : "Office",
-    staffName: "Staff",
+    staffName: ticket.staff_name || "Staff",
     description: ticket.description || "No details provided.",
     fileName: "",
     aiAnswer: "Ask Tatua Sasa AI for guidance.",
@@ -108,28 +109,49 @@ function StatusPill({ status }) {
 }
 
 function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onResolve, onAskAi, assetsList = [] }) {
-  const [stage, setStage] = useState("pending");
+  const getInitialStage = (status) => {
+    switch (status) {
+      case 'assigned': return 'pending';
+      case 'in_progress': return 'working';
+      case 'escalated': return 'escalated';
+      case 'resolved': return 'working';
+      case 'closed': return 'working';
+      default: return 'pending';
+    }
+  };
+  const [stage, setStage] = useState(getInitialStage(job.status));
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [userId, setUserId] = useState(null);
+  const [userName, setUserName] = useState("");
   const [aiAsked, setAiAsked] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [assetNumber, setAssetNumber] = useState("");
   const [steps, setSteps] = useState([""]);
   const [duration, setDuration] = useState("");
   const [published, setPublished] = useState(false);
-  const [savedOnly, setSavedOnly] = useState(false);
+  const [savedOnly, setSavedOnly] = useState(job.status === 'resolved' || job.status === 'closed');
   const [submittingAction, setSubmittingAction] = useState(null); // "accept", "reject", "escalate", "resolve_publish", "resolve_save", "ask_ai"
   const [showEscalatePopup, setShowEscalatePopup] = useState(false);
   const stepRefs = useRef([]);
   const ticketId = job.ticketId ?? job.id;
 
+  useEffect(() => {
+    setStage(getInitialStage(job.status));
+    if (job.status === 'resolved' || job.status === 'closed') {
+      setSavedOnly(true);
+    }
+  }, [job.status]);
+
   // Resolve the technician's own id once, used to tell "my" bubbles apart from staff's
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data?.user) setUserId(data.user.id);
+      if (data?.user) {
+        setUserId(data.user.id);
+        setUserName(data.user.user_metadata?.full_name || data.user.email.split('@')[0]);
+      }
     });
   }, []);
 
@@ -142,7 +164,12 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
       setLoadingMessages(true);
       try {
         const history = await apiFetch(`/tickets/${ticketId}/messages`, {}, "Failed to load chat history");
-        if (!cancelled) setMessages(history || []);
+        if (!cancelled) {
+          setMessages(history || []);
+          if (history && history.length > 0) {
+            apiFetch(`/tickets/${ticketId}/messages/read`, { method: 'PUT' }).catch(console.error);
+          }
+        }
       } catch (err) {
         if (!cancelled) setMessages([]);
       } finally {
@@ -175,9 +202,22 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
             if (prev.some((m) => m.id === payload.new.id)) return prev;
             if (payload.new.sender_id !== userId) {
               playNotificationSound();
+              apiFetch(`/tickets/${ticketId}/messages/read`, { method: 'PUT' }).catch(console.error);
             }
             return [...prev, payload.new];
           });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "ticket_messages",
+          filter: `ticket_id=eq.${ticketId}`,
+        },
+        (payload) => {
+          setMessages((prev) => prev.map((m) => (m.id === payload.new.id ? payload.new : m)));
         }
       )
       .subscribe();
@@ -211,7 +251,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
         "Failed to send message"
       );
       setMessages((prev) =>
-        prev.map((m) => (m.id === tempId ? { ...sent, status: "delivered" } : m))
+        prev.map((m) => (m.id === tempId ? { ...sent, status: "sent" } : m))
       );
     } catch (err) {
       setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
@@ -434,48 +474,95 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
             onClick={() => setChatOpen((o) => !o)}
             className="flex w-full items-center gap-2 bg-[#e6f1fb] px-3 py-2.5 text-left"
           >
-            <span className="flex-1 text-[13px] text-[#185fa5]">
-              {job.staffName} has opened a live chat with you
+            <span className="flex-1 text-[13px] text-[#185fa5] font-semibold">
+              Chat with {job.staffName}
             </span>
             <span className="text-[13px] text-[#185fa5]">{chatOpen ? "▲" : "▼"}</span>
           </button>
 
           {chatOpen && (
-            <div className="border border-[var(--color-line)] p-3">
-              <div className="flex max-h-[150px] flex-col gap-1.5 overflow-y-auto">
+            <div className="border border-[var(--color-line)] bg-white rounded-lg overflow-hidden mt-2">
+              <div className="chat-messages" style={{ maxHeight: '300px', padding: '15px' }}>
                 {loadingMessages ? (
-                  <p className="text-[13px] text-[var(--color-muted)]">Loading messages…</p>
+                  <p className="text-[13px] text-[var(--color-muted)] text-center py-4">Loading messages…</p>
                 ) : messages.length === 0 ? (
-                  <p className="text-[13px] text-[var(--color-muted)]">No messages yet.</p>
+                  <p className="text-[13px] text-[var(--color-muted)] text-center py-4">No messages yet. Send a message to start the conversation!</p>
                 ) : (
                   messages.map((m) => {
                     const isMine = m.sender_id === userId;
+                    const staffName = job.staffName || 'Staff';
+                    const techName = userName || 'Me';
+                    const avatarChar = isMine ? techName.charAt(0).toUpperCase() : staffName.charAt(0).toUpperCase();
+
                     return (
-                      <div
-                        key={m.id}
-                        className="max-w-[80%] px-2.5 py-2 text-[13px]"
-                        style={
-                          isMine
-                            ? { alignSelf: "flex-end", background: accent, color: onAccent }
-                            : { alignSelf: "flex-start", background: "#f1efe8" }
-                        }
-                      >
-                        {m.body}
+                      <div key={m.id} className={`message-row ${isMine ? 'sent' : 'received'}`}>
+                        {!isMine && (
+                          <div className="chat-avatar" style={{ backgroundColor: '#f59e0b' }} title={staffName}>
+                            {avatarChar}
+                          </div>
+                        )}
+                        <div className="message-wrapper">
+                          <div className="message-bubble" style={isMine ? { backgroundColor: accent, color: onAccent } : {}}>
+                            {m.body}
+                          </div>
+                          <div className="message-meta">
+                            <span>
+                              {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {isMine && m.status === 'sent' && (
+                              <span className="delivered-icon" style={{ color: 'rgba(255,255,255,0.7)' }} title="Sent">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              </span>
+                            )}
+                            {isMine && m.status === 'read' && (
+                              <span className="delivered-icon" style={{ display: 'flex', color: '#60a5fa' }} title="Read">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '-8px' }}>
+                                  <polyline points="20 6 9 17 4 12"></polyline>
+                                </svg>
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     );
                   })
                 )}
               </div>
-              <div className="mt-2.5 flex gap-2">
-                <input
+              <div className="chat-input-container" style={{ padding: '10px' }}>
+                <textarea
                   value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                  onChange={(e) => {
+                    setChatInput(e.target.value);
+                    e.target.style.height = 'auto';
+                    e.target.style.height = `${e.target.scrollHeight}px`;
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      if (chatInput.trim()) sendMessage();
+                    }
+                  }}
                   placeholder={`Reply to ${job.staffName}…`}
-                  className="min-w-0 flex-1 border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
+                  className="chat-input"
+                  style={{ minHeight: '40px', fontSize: '14px', padding: '10px 14px' }}
+                  rows={1}
                 />
-                <button onClick={sendMessage} className="border border-[var(--color-ink)] px-3 text-[13px] font-semibold">
-                  Send
+                <button 
+                  onClick={sendMessage} 
+                  className="send-btn" 
+                  disabled={!chatInput.trim()} 
+                  style={{ backgroundColor: accent, color: onAccent }}
+                  aria-label="Send message"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'translateX(-1px) translateY(1px)' }}>
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
                 </button>
               </div>
             </div>

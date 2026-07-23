@@ -120,24 +120,34 @@ async def create_ticket(
 def my_tickets(current_user=Depends(get_current_user)):
     result = (
         supabase.table("tickets")
-        .select("*")
+        .select("*, assignee:profiles!tickets_assigned_to_fkey(full_name)")
         .eq("submitted_by", current_user["id"])
         .order("created_at", desc=True)
         .execute()
     )
-    return result.data
+    tickets = []
+    for t in result.data:
+        t["technician_name"] = t.get("assignee", {}).get("full_name") if t.get("assignee") else None
+        t.pop("assignee", None)
+        tickets.append(t)
+    return tickets
 
 
 @router.get("/assigned", dependencies=[Depends(require_role("technician"))])
 def assigned_tickets(current_user=Depends(get_current_user)):
     result = (
         supabase.table("tickets")
-        .select("*")
+        .select("*, staff:profiles!tickets_submitted_by_fkey(full_name)")
         .eq("assigned_to", current_user["id"])
         .order("priority", desc=True)
         .execute()
     )
-    return result.data
+    tickets = []
+    for t in result.data:
+        t["staff_name"] = t.get("staff", {}).get("full_name") if t.get("staff") else None
+        t.pop("staff", None)
+        tickets.append(t)
+    return tickets
 
 
 @router.get("", dependencies=[Depends(require_role("supervisor", "admin"))])
@@ -395,6 +405,7 @@ def send_message(ticket_id: int, payload: MessageCreate, current_user=Depends(ge
         "sender_id": current_user["id"],
         "sender_role": sender_role,
         "body": payload.body,
+        "status": "sent"
     }
 
     insert_result = supabase_admin.table("ticket_messages").insert(message_row).execute()
@@ -402,3 +413,19 @@ def send_message(ticket_id: int, payload: MessageCreate, current_user=Depends(ge
         raise HTTPException(status_code=500, detail="Failed to send message")
 
     return insert_result.data[0]
+
+@router.put("/{ticket_id}/messages/read")
+def mark_messages_read(ticket_id: int, current_user=Depends(get_current_user)):
+    ticket = _check_participant(ticket_id, current_user)
+    
+    # Mark messages as read where sender_id is not the current user
+    update_result = (
+        supabase_admin.table("ticket_messages")
+        .update({"status": "read"})
+        .eq("ticket_id", ticket_id)
+        .neq("sender_id", current_user["id"])
+        .neq("status", "read")
+        .execute()
+    )
+    
+    return {"status": "success", "updated": len(update_result.data) if update_result.data else 0}
