@@ -135,6 +135,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
   const [savedOnly, setSavedOnly] = useState(job.status === 'resolved' || job.status === 'closed');
   const [submittingAction, setSubmittingAction] = useState(null); // "accept", "reject", "escalate", "resolve_publish", "resolve_save", "ask_ai"
   const [showEscalatePopup, setShowEscalatePopup] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   const stepRefs = useRef([]);
   const ticketId = job.ticketId ?? job.id;
 
@@ -155,10 +156,8 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
     });
   }, []);
 
-  // Load chat history the first time the thread is opened
+  // Load chat history when the thread is opened
   useEffect(() => {
-    if (!chatOpen) return;
-
     let cancelled = false;
     const loadMessages = async () => {
       setLoadingMessages(true);
@@ -181,7 +180,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
     return () => {
       cancelled = true;
     };
-  }, [chatOpen, ticketId]);
+  }, [ticketId]);
 
   // Realtime subscription so new staff messages appear without reopening the thread
   useEffect(() => {
@@ -389,7 +388,7 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
     : { background: "#e6f1fb", color: "#185fa5" });
 
   return (
-    <div className="p-4 sm:p-5">
+    <div className="flex flex-col h-full bg-slate-50">
       {/* Escalate Popup */}
       {showEscalatePopup && (
         <div style={{
@@ -416,359 +415,350 @@ function JobDetail({ job, accent, onAccent, onAccept, onReject, onEscalate, onRe
           </div>
         </div>
       )}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-[16px] font-semibold">{job.title}</p>
-          <p className="mt-1 text-[13px] text-[var(--color-muted)]">{job.ticket}</p>
-          <p className="mt-1 flex items-center gap-1 text-[13px] text-[var(--color-muted)]">
-            📍 {job.location}
-          </p>
-        </div>
-        <span className="w-fit px-3 py-1 text-[12px] font-medium" style={statusStyle}>
-          {completed ? "Completed" : statusLabel}
-        </span>
-      </div>
 
-      {stage === "pending" && (
-        <div className="mt-4 flex gap-2">
-          <button
-            onClick={handleAccept}
-            className="flex-1 border py-2.5 text-[14px] font-semibold"
-            style={{ background: accent, borderColor: accent, color: onAccent }}
-          >
-            Accept
-          </button>
-          <button
-            onClick={handleReject}
-            className="flex-1 border border-[var(--color-line)] py-2.5 text-[14px] font-semibold"
-          >
-            Reject
-          </button>
-        </div>
-      )}
-
-      {stage !== "pending" && stage !== "rejected" && (
-        <div className="mt-4 space-y-3">
-          {stage === "escalated" && (
-            <div className="bg-[#faeeda] p-3">
-              <p className="text-[14px] font-semibold text-[#854f0b]">Escalated to a supervisor</p>
-              <p className="mt-1 text-[13px] text-[#854f0b]">
-                You can keep working on it while you wait for a response.
-              </p>
+      {/* Header Info */}
+      <div className="bg-white px-6 pt-5 pb-4 border-b border-slate-200">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <span className="text-xs font-mono font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded">T-{job.id}</span>
+              <span className="w-fit px-2.5 py-0.5 rounded-full text-[11px] font-medium" style={statusStyle}>
+                {completed ? "Completed" : statusLabel}
+              </span>
+              <StatusPill status={job.priority} />
+            </div>
+            <h2 className="text-xl font-bold text-slate-800">{job.title}</h2>
+            <div className="flex items-center gap-4 mt-2 text-sm text-slate-500">
+              <span className="flex items-center gap-1">📍 {job.location}</span>
+              <span className="flex items-center gap-1">👤 {job.staffName}</span>
+            </div>
+          </div>
+          
+          {stage === "pending" && (
+            <div className="flex gap-2 mt-4 sm:mt-0">
+              <button
+                onClick={handleAccept}
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm hover:opacity-90"
+                style={{ background: accent, color: onAccent }}
+              >
+                Accept Ticket
+              </button>
+              <button
+                onClick={handleReject}
+                className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+              >
+                Reject
+              </button>
             </div>
           )}
 
-          <div className="bg-[#f7f7f7] p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-muted)]">
-              What {job.staffName} said
-            </p>
-            <p className="mt-1.5 text-[14px] text-[var(--color-muted)]">"{job.description}"</p>
-            {job.fileName && (
-              <div className="mt-2 flex w-fit items-center gap-2 border border-[var(--color-line)] px-2.5 py-1.5">
-                <span className="text-[12px] text-[var(--color-muted)]">📎 {job.fileName}</span>
+          {stage !== "pending" && stage !== "rejected" && !completed && (
+            <div className="flex gap-2 mt-4 sm:mt-0">
+               {stage !== "escalated" && (
+                 <button
+                   onClick={() => setSubmittingAction('escalate')}
+                   className="px-4 py-2 rounded-lg text-sm font-semibold bg-white border border-amber-200 text-amber-700 hover:bg-amber-50 transition-all shadow-sm"
+                 >
+                   Escalate
+                 </button>
+               )}
+               {submittingAction === 'escalate' && (
+                 <div className="absolute top-16 right-6 bg-white p-4 shadow-xl border border-slate-200 rounded-xl z-50 w-72">
+                   <p className="text-sm font-semibold mb-2">Escalate to Supervisor</p>
+                   <textarea
+                     value={aiInput}
+                     onChange={(e) => setAiInput(e.target.value)}
+                     placeholder="Reason for escalation..."
+                     className="w-full border rounded-lg p-2 text-sm mb-3"
+                     rows={3}
+                   />
+                   <div className="flex gap-2">
+                     <button onClick={handleEscalate} className="flex-1 bg-amber-600 text-white rounded-lg py-1.5 text-sm font-medium">Confirm</button>
+                     <button onClick={() => setSubmittingAction(null)} className="flex-1 border text-slate-600 rounded-lg py-1.5 text-sm font-medium">Cancel</button>
+                   </div>
+                 </div>
+               )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs Layout */}
+      {stage !== "pending" && stage !== "rejected" && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Inner Tabs */}
+          <div className="flex border-b border-slate-200 bg-white px-6">
+            {['overview', 'chat', 'ai', 'resolve'].map(tab => {
+               if (tab === 'resolve' && completed) return null; // hide resolve tab if done
+               return (
+                 <button
+                   key={tab}
+                   onClick={() => setActiveTab(tab)}
+                   className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                     activeTab === tab ? 'border-[#185fa5] text-[#185fa5]' : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                   }`}
+                 >
+                   {tab === 'overview' && 'Overview'}
+                   {tab === 'chat' && (
+                     <span className="flex items-center gap-2">
+                       Live Chat
+                       {messages.length > 0 && <span className="bg-[#185fa5] text-white text-[10px] px-1.5 py-0.5 rounded-full">{messages.length}</span>}
+                     </span>
+                   )}
+                   {tab === 'ai' && '✨ AI Assistant'}
+                   {tab === 'resolve' && 'Resolution'}
+                 </button>
+               )
+            })}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 relative">
+            {/* OVERVIEW TAB */}
+            {activeTab === 'overview' && (
+              <div className="space-y-6 max-w-3xl">
+                {stage === "escalated" && (
+                  <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-3 items-start">
+                    <span className="text-amber-600 mt-0.5">⚠️</span>
+                    <div>
+                      <p className="text-sm font-semibold text-amber-900">Escalated to a supervisor</p>
+                      <p className="mt-1 text-sm text-amber-700">You can keep working on it or use the chat while waiting for a response.</p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">Issue Description</h3>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">"{job.description}"</p>
+                  
+                  {job.fileName && (
+                    <div className="mt-4 flex w-fit items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                      <span className="text-sm text-slate-600">📎 {job.fileName}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                   <div className="mb-3">
+                     <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">Linked Asset</h3>
+                     <p className="text-xs text-slate-500 mt-1">If this issue is related to a specific device (e.g., a specific laptop, printer, or router), search and link its asset tag here. This helps track equipment history.</p>
+                   </div>
+                   <input
+                      list="assets-list"
+                      value={assetNumber}
+                      onChange={(e) => setAssetNumber(e.target.value)}
+                      placeholder="Search by asset tag or name..."
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-[#185fa5] focus:outline-none transition-shadow"
+                      disabled={completed}
+                    />
+                    <datalist id="assets-list">
+                      {assetsList.map((a) => (
+                        <option key={a.id} value={a.asset_tag}>
+                          {a.name} ({a.category})
+                        </option>
+                      ))}
+                    </datalist>
+                </div>
+              </div>
+            )}
+
+            {/* CHAT TAB */}
+            {activeTab === 'chat' && (
+              <div className="bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col h-[500px] max-w-3xl">
+                 <div className="flex-1 overflow-y-auto p-4 chat-messages">
+                    {loadingMessages ? (
+                      <p className="text-sm text-slate-500 text-center py-8">Loading messages…</p>
+                    ) : messages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-3">💬</div>
+                         <p className="text-slate-800 font-medium">No messages yet</p>
+                         <p className="text-sm text-slate-500 mt-1">Send a message to start the conversation with {job.staffName}.</p>
+                      </div>
+                    ) : (
+                      messages.map((m) => {
+                        const isMine = m.sender_id === userId;
+                        const staffName = job.staffName || 'Staff';
+                        const techName = userName || 'Me';
+                        const avatarChar = isMine ? techName.charAt(0).toUpperCase() : staffName.charAt(0).toUpperCase();
+
+                        return (
+                          <div key={m.id} className={`message-row ${isMine ? 'sent' : 'received'}`}>
+                            {!isMine && (
+                              <div className="chat-avatar" style={{ backgroundColor: '#f59e0b' }} title={staffName}>
+                                {avatarChar}
+                              </div>
+                            )}
+                            <div className="message-wrapper">
+                              <div className="message-bubble" style={isMine ? { backgroundColor: accent, color: onAccent } : {}}>
+                                {m.body}
+                              </div>
+                              <div className="message-meta">
+                                <span>
+                                  {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                                {isMine && m.status === 'sent' && (
+                                  <span className="delivered-icon" style={{ color: 'rgba(255,255,255,0.7)' }} title="Sent">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                  </span>
+                                )}
+                                {isMine && m.status === 'read' && (
+                                  <span className="delivered-icon" style={{ display: 'flex', color: '#60a5fa' }} title="Read">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                      <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '-8px' }}>
+                                      <polyline points="20 6 9 17 4 12"></polyline>
+                                    </svg>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                 </div>
+                 <div className="p-3 border-t border-slate-200 bg-slate-50 flex gap-2">
+                    <textarea
+                      value={chatInput}
+                      onChange={(e) => {
+                        setChatInput(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          if (chatInput.trim()) sendMessage();
+                        }
+                      }}
+                      placeholder={`Message ${job.staffName}…`}
+                      className="flex-1 resize-none border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#185fa5] transition-shadow"
+                      rows={1}
+                      style={{ maxHeight: '120px' }}
+                    />
+                    <button 
+                      onClick={sendMessage} 
+                      disabled={!chatInput.trim()} 
+                      className="w-10 h-10 rounded-full flex items-center justify-center self-end disabled:opacity-50 transition-transform active:scale-95"
+                      style={{ backgroundColor: accent, color: onAccent }}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'translateX(-1px) translateY(1px)' }}>
+                        <line x1="22" y1="2" x2="11" y2="13"></line>
+                        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      </svg>
+                    </button>
+                 </div>
+              </div>
+            )}
+
+            {/* AI TAB */}
+            {activeTab === 'ai' && (
+              <div className="max-w-3xl flex flex-col gap-4">
+                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100 p-5 shadow-sm">
+                   <div className="flex items-center gap-2 mb-3">
+                     <span className="text-xl">✨</span>
+                     <h3 className="font-semibold text-slate-800">Tatua Sasa AI Guidance</h3>
+                   </div>
+                   
+                   <div className="flex flex-col sm:flex-row gap-3">
+                     <input
+                       value={aiInput}
+                       onChange={(e) => setAiInput(e.target.value)}
+                       placeholder="E.g. What are the common causes for this issue?"
+                       className="flex-1 border border-slate-200 rounded-lg px-4 py-2.5 text-sm shadow-sm focus:ring-2 focus:ring-[#185fa5] focus:outline-none"
+                     />
+                     <button
+                       onClick={handleAskAi}
+                       disabled={submittingAction === "ask_ai" || !aiInput.trim()}
+                       className="px-6 py-2.5 rounded-lg text-sm font-semibold bg-white border border-slate-200 text-slate-700 shadow-sm hover:bg-slate-50 transition-colors disabled:opacity-50 whitespace-nowrap"
+                     >
+                       {submittingAction === "ask_ai" ? "Thinking..." : "Ask AI"}
+                     </button>
+                   </div>
+                 </div>
+
+                 {aiAsked && (
+                   <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm prose prose-sm max-w-none prose-slate">
+                      {formatAiResponse(aiInput)}
+                   </div>
+                 )}
+              </div>
+            )}
+
+            {/* RESOLUTION TAB */}
+            {activeTab === 'resolve' && !completed && (
+              <div className="max-w-3xl space-y-6">
+                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                  <h3 className="text-base font-semibold text-slate-800 mb-4">Log Resolution</h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Steps taken</label>
+                      <div className="space-y-2">
+                        {steps.map((step, i) => (
+                          <div key={i} className="flex gap-2 items-start">
+                            <span className="mt-2 text-xs font-mono text-slate-400">{i + 1}.</span>
+                            <textarea
+                              ref={(el) => (stepRefs.current[i] = el)}
+                              value={step}
+                              onChange={(e) => updateStep(i, e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault();
+                                  appendStep();
+                                } else if (e.key === "Backspace" && step === "" && i > 0) {
+                                  e.preventDefault();
+                                  removeStep(i);
+                                }
+                              }}
+                              className="flex-1 resize-none border border-slate-200 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#185fa5]"
+                              rows={1}
+                            />
+                            {steps.length > 1 && (
+                              <button onClick={() => removeStep(i)} className="mt-2 text-slate-400 hover:text-red-500 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={appendStep} className="mt-3 text-sm font-medium text-[#185fa5] hover:underline">+ Add step</button>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Time spent</label>
+                      <input
+                        value={duration}
+                        onChange={(e) => setDuration(e.target.value)}
+                        placeholder="e.g. 45m, 1.5h"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                   <button
+                     onClick={() => handleResolve(true)}
+                     disabled={submittingAction}
+                     className="flex-1 py-3 rounded-lg text-sm font-semibold shadow-sm hover:opacity-90 transition-opacity"
+                     style={{ background: accent, color: onAccent }}
+                   >
+                     {submittingAction === "resolve_publish" ? "Resolving..." : "Resolve & Publish to KB"}
+                   </button>
+                   <button
+                     onClick={() => handleResolve(false)}
+                     disabled={submittingAction}
+                     className="flex-1 py-3 rounded-lg text-sm font-semibold bg-white border border-slate-200 shadow-sm hover:bg-slate-50 transition-colors"
+                   >
+                     {submittingAction === "resolve_save" ? "Resolving..." : "Resolve (Save only)"}
+                   </button>
+                </div>
               </div>
             )}
           </div>
-
-          <button
-            onClick={() => setChatOpen((o) => !o)}
-            className="flex w-full items-center gap-2 bg-[#e6f1fb] px-3 py-2.5 text-left"
-          >
-            <span className="flex-1 text-[13px] text-[#185fa5] font-semibold">
-              Chat with {job.staffName}
-            </span>
-            <span className="text-[13px] text-[#185fa5]">{chatOpen ? "▲" : "▼"}</span>
-          </button>
-
-          {chatOpen && (
-            <div className="border border-[var(--color-line)] bg-white rounded-lg overflow-hidden mt-2">
-              <div className="chat-messages" style={{ maxHeight: '300px', padding: '15px' }}>
-                {loadingMessages ? (
-                  <p className="text-[13px] text-[var(--color-muted)] text-center py-4">Loading messages…</p>
-                ) : messages.length === 0 ? (
-                  <p className="text-[13px] text-[var(--color-muted)] text-center py-4">No messages yet. Send a message to start the conversation!</p>
-                ) : (
-                  messages.map((m) => {
-                    const isMine = m.sender_id === userId;
-                    const staffName = job.staffName || 'Staff';
-                    const techName = userName || 'Me';
-                    const avatarChar = isMine ? techName.charAt(0).toUpperCase() : staffName.charAt(0).toUpperCase();
-
-                    return (
-                      <div key={m.id} className={`message-row ${isMine ? 'sent' : 'received'}`}>
-                        {!isMine && (
-                          <div className="chat-avatar" style={{ backgroundColor: '#f59e0b' }} title={staffName}>
-                            {avatarChar}
-                          </div>
-                        )}
-                        <div className="message-wrapper">
-                          <div className="message-bubble" style={isMine ? { backgroundColor: accent, color: onAccent } : {}}>
-                            {m.body}
-                          </div>
-                          <div className="message-meta">
-                            <span>
-                              {new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            {isMine && m.status === 'sent' && (
-                              <span className="delivered-icon" style={{ color: 'rgba(255,255,255,0.7)' }} title="Sent">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                              </span>
-                            )}
-                            {isMine && m.status === 'read' && (
-                              <span className="delivered-icon" style={{ display: 'flex', color: '#60a5fa' }} title="Read">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: '-8px' }}>
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              <div className="chat-input-container" style={{ padding: '10px' }}>
-                <textarea
-                  value={chatInput}
-                  onChange={(e) => {
-                    setChatInput(e.target.value);
-                    e.target.style.height = 'auto';
-                    e.target.style.height = `${e.target.scrollHeight}px`;
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      if (chatInput.trim()) sendMessage();
-                    }
-                  }}
-                  placeholder={`Reply to ${job.staffName}…`}
-                  className="chat-input"
-                  style={{ minHeight: '40px', fontSize: '14px', padding: '10px 14px' }}
-                  rows={1}
-                />
-                <button 
-                  onClick={sendMessage} 
-                  className="send-btn" 
-                  disabled={!chatInput.trim()} 
-                  style={{ backgroundColor: accent, color: onAccent }}
-                  aria-label="Send message"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: 'translateX(-1px) translateY(1px)' }}>
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-
-          <div className="border border-[var(--color-line)] p-3 mb-3">
-            <label className="block text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-muted)]">
-              Linked Asset
-            </label>
-            <input
-              list="assets-list"
-              value={assetNumber}
-              onChange={(e) => setAssetNumber(e.target.value)}
-              placeholder="Search by asset tag or name..."
-              className="mt-2 w-full border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
-              disabled={completed}
-            />
-            <datalist id="assets-list">
-              {assetsList.map((a) => (
-                <option key={a.id} value={a.asset_tag}>
-                  {a.name} ({a.category})
-                </option>
-              ))}
-            </datalist>
-          </div>
-
-          <div className="border border-dashed border-[var(--color-line)] p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--color-muted)]">
-              Ask Tatua Sasa AI
-            </p>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <input
-                value={aiInput}
-                onChange={(e) => setAiInput(e.target.value)}
-                placeholder="What usually fixes this?"
-                className="min-w-0 flex-1 border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
-              />
-              <button
-                onClick={handleAskAi}
-                disabled={submittingAction !== null}
-                className="border border-[var(--color-ink)] px-3 py-2 text-[13px] font-semibold disabled:opacity-50"
-              >
-                {submittingAction === "ask_ai" ? "Generating..." : "Ask"}
-              </button>
-            </div>
-            {aiAsked && <div className="mt-3 text-[13px] text-[var(--color-muted)] bg-[#f7f7f7] p-3 border border-dashed border-[#e2e8f0] rounded">{formatAiResponse(aiInput)}</div>}
-          </div>
-
-          {!completed && stage !== "resolving" && (
-            <div className="flex items-center gap-2 px-3 py-2.5" style={{ background: "#e6f1fb" }}>
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: "#185fa5" }} />
-              <span className="text-[13px]" style={{ color: "#185fa5" }}>
-                In progress — {job.staffName} will be notified once this is completed
-              </span>
-            </div>
-          )}
-
-          {!completed && stage !== "resolving" && (
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                onClick={handleEscalate}
-                disabled={submittingAction !== null}
-                className="flex-1 border py-2.5 text-[14px] font-semibold disabled:opacity-50"
-                style={{ background: "#faeeda", color: "#854f0b", borderColor: "#854f0b" }}
-              >
-                {submittingAction === "escalate" ? "Escalating..." : "Escalate issue"}
-              </button>
-              <button
-                onClick={() => setStage("resolving")}
-                disabled={submittingAction !== null}
-                className="flex-1 border py-2.5 text-[14px] font-semibold disabled:opacity-50"
-                style={{ background: accent, borderColor: accent, color: onAccent }}
-              >
-                Mark as completed
-              </button>
-            </div>
-          )}
-
-          {stage === "resolving" && !completed && (
-            <div className="bg-[#f7f7f7] p-4">
-              <p className="text-[15px] font-semibold">Add this to the knowledge base</p>
-
-              <p className="mt-3 text-[12px] text-[var(--color-muted)]">Steps</p>
-              <div className="mt-1.5 flex flex-col gap-2">
-                {steps.map((s, i) => (
-                  <input
-                    key={i}
-                    ref={(el) => {
-                      stepRefs.current[i] = el;
-                    }}
-                    value={s}
-                    onChange={(e) => updateStep(i, e.target.value)}
-                    onKeyDown={(e) => handleStepKeyDown(e, i)}
-                    placeholder={`Step ${i + 1}`}
-                    className="w-full border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
-                  />
-                ))}
-              </div>
-              <button
-                onClick={appendStep}
-                className="mt-2 text-[13px] font-semibold underline underline-offset-2"
-              >
-                + Add another step
-              </button>
-
-              <label className="mt-3 block text-[12px] text-[var(--color-muted)]">
-                How long did this take?
-              </label>
-              <input
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-                placeholder="20 minutes"
-                className="mt-1 w-full border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
-              />
-
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <button
-                  onClick={() => handleResolve(true)}
-                  disabled={submittingAction !== null}
-                  className="flex-1 border py-2.5 text-[14px] font-semibold disabled:opacity-50"
-                  style={{ background: accent, borderColor: accent, color: onAccent }}
-                >
-                  {submittingAction === "resolve_publish" ? "Publishing..." : "Publish article"}
-                </button>
-                <button
-                  onClick={() => handleResolve(false)}
-                  disabled={submittingAction !== null}
-                  className="flex-1 border border-[var(--color-ink)] py-2.5 text-[14px] font-semibold disabled:opacity-50"
-                >
-                  {submittingAction === "resolve_save" ? "Saving..." : "Save and mark as done"}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {published && (
-            <p className="text-[13px] text-[#27500a]">Article added to the knowledge base.</p>
-          )}
-
-          {completed && (
-            <div className="bg-[#eaf3de] p-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[#27500a]">
-                Feedback from {job.staffName}
-              </p>
-              <p className="mt-1.5 text-[14px] text-[#27500a]">{job.feedback}</p>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SkillsPanel({ skills, onAddSkill }) {
-  const [showInput, setShowInput] = useState(false);
-  const [value, setValue] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const addSkill = async () => {
-    if (!value.trim()) return;
-    setIsSubmitting(true);
-    try {
-      await onAddSkill(value.trim());
-      setValue("");
-      setShowInput(false);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  return (
-    <div className="border border-[var(--color-line)] p-4">
-      <div className="flex items-center justify-between">
-        <p className="text-[15px] font-semibold">Your skills</p>
-        <button onClick={() => setShowInput(true)} className="text-[13px] font-semibold underline underline-offset-2">
-          + Add skill
-        </button>
-      </div>
-      <div className="mt-2.5">
-        {skills.length === 0 ? (
-          <p className="text-[13px] text-[var(--color-muted)]">No skills added yet.</p>
-        ) : (
-          <table className="w-full text-[13px]">
-            <tbody>
-              {skills.map((s, i) => (
-                <tr key={i}>
-                  <td className="border-t border-[var(--color-line)] py-1.5">{s}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-      {showInput && (
-        <div className="mt-2.5 flex gap-2">
-          <input
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && addSkill()}
-            placeholder="Networking"
-            className="min-w-0 flex-1 border border-[var(--color-line)] px-2.5 py-2 text-[14px]"
-            disabled={isSubmitting}
-          />
-          <button onClick={addSkill} disabled={isSubmitting} className="border border-[var(--color-ink)] bg-[var(--color-ink)] px-3 text-[13px] font-semibold text-[var(--color-bg)] disabled:opacity-50">
-            {isSubmitting ? "Saving..." : "Save"}
-          </button>
         </div>
       )}
     </div>
@@ -791,6 +781,9 @@ export default function TechnicianDashboard() {
   }, [greenTheme]);
   const [view, setView] = useState("queue");
   const [selectedJobId, setSelectedJobId] = useState(null);
+  const [ticketTab, setTicketTab] = useState("pending");
+  window.ticketTab = ticketTab;
+  window.setTicketTab = setTicketTab;
   const [jobs, setJobs] = useState([]);
   const [skills, setSkills] = useState([]);
   const [solvedHistory, setSolvedHistory] = useState([]);
@@ -1081,8 +1074,9 @@ export default function TechnicianDashboard() {
       <div className="mx-auto max-w-[1000px] px-4 pb-10 sm:px-6">
         {view === "queue" && (
           <>
+            
             {!hasJobs && (
-              <div className="rounded-2xl border border-[var(--color-line)] p-8 text-center">
+              <div className="rounded-2xl border border-[var(--color-line)] p-8 text-center bg-white shadow-sm">
                 <p className="text-[15px] font-semibold">No jobs assigned yet</p>
                 <p className="mt-1 text-[13px] text-[var(--color-muted)]">
                   Jobs will show up here automatically once one is assigned to you.
@@ -1090,67 +1084,115 @@ export default function TechnicianDashboard() {
               </div>
             )}
             {hasJobs && !selectedJobId && (
-              <div className="admin-livequeue-container">
-                <div className="livequeue-header-row">
-                  <h2 className="text-[18px] font-semibold">Your Assigned Tickets</h2>
+              <div className="admin-livequeue-container shadow-sm border-0 bg-transparent">
+                <div className="mb-4">
+                  <h2 className="text-[20px] font-bold text-slate-800">Your Tickets</h2>
                 </div>
-                <div className="queue-table-responsive">
-                  <table className="queue-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Ticket Subject</th>
-                      <th>Location</th>
-                      <th>Priority</th>
-                      <th>Status</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {jobs.map((job) => (
-                      <tr key={job.id}>
-                        <td className="font-mono text-xs text-[var(--color-muted)]">T-{job.id}</td>
-                        <td className="font-medium">{job.title}</td>
-                        <td className="text-sm">{job.location}</td>
-                        <td><StatusPill status={job.priority} /></td>
-                        <td><StatusPill status={job.status} /></td>
-                        <td>
-                          <button
-                            onClick={() => setSelectedJobId(job.id)}
-                            className="rounded border px-3 py-1.5 text-[12px] font-semibold"
-                            style={{ borderColor: accent, color: accent }}
-                          >
-                            Open
-                          </button>
-                        </td>
+                
+                {/* Kanban Tabs */}
+                <div className="flex border-b border-slate-200 mb-4 bg-white rounded-t-xl px-4 pt-2">
+                  {['pending', 'working', 'completed'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => window.setTicketTab && window.setTicketTab(tab)}
+                      className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                        (window.ticketTab || 'pending') === tab ? 'border-[#185fa5] text-[#185fa5]' : 'border-transparent text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {tab === 'pending' && 'New / Pending'}
+                      {tab === 'working' && 'In Progress'}
+                      {tab === 'completed' && 'Completed'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="bg-white rounded-b-xl rounded-tr-xl border border-slate-200 overflow-hidden">
+                  <div className="queue-table-responsive">
+                    <table className="queue-table">
+                    <thead className="bg-slate-50 border-b border-slate-200">
+                      <tr>
+                        <th className="py-3 px-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">ID</th>
+                        <th className="py-3 px-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Subject</th>
+                        <th className="py-3 px-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Staff / Creator</th>
+                        <th className="py-3 px-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
+                        <th className="py-3 px-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Priority</th>
+                        <th className="py-3 px-4 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="py-3 px-4 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {jobs.filter(j => {
+                        const tab = window.ticketTab || 'pending';
+                        if (tab === 'pending') return j.status === 'assigned';
+                        if (tab === 'working') return j.status === 'in_progress' || j.status === 'escalated';
+                        if (tab === 'completed') return j.status === 'resolved' || j.status === 'closed';
+                        return true;
+                      }).map((job) => (
+                        <tr key={job.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 px-4 font-mono text-xs text-slate-500">T-{job.id}</td>
+                          <td className="py-3 px-4 font-medium text-slate-800">{job.title}</td>
+                          <td className="py-3 px-4 text-sm text-slate-600 font-medium">👤 {job.staffName}</td>
+                          <td className="py-3 px-4 text-sm text-slate-500">{job.location}</td>
+                          <td className="py-3 px-4"><StatusPill status={job.priority} /></td>
+                          <td className="py-3 px-4"><StatusPill status={job.status} /></td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              onClick={() => setSelectedJobId(job.id)}
+                              className="rounded-lg border px-4 py-1.5 text-xs font-semibold transition-colors hover:bg-slate-50"
+                              style={{ borderColor: accent, color: accent }}
+                            >
+                              Open
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {jobs.filter(j => {
+                        const tab = window.ticketTab || 'pending';
+                        if (tab === 'pending') return j.status === 'assigned';
+                        if (tab === 'working') return j.status === 'in_progress' || j.status === 'escalated';
+                        if (tab === 'completed') return j.status === 'resolved' || j.status === 'closed';
+                        return true;
+                      }).length === 0 && (
+                        <tr>
+                          <td colSpan="6" className="py-8 text-center text-sm text-slate-500">
+                            No tickets in this section.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                </div>
               </div>
             )}
-            {hasJobs && selectedJobId && (
-              <div className="flex flex-col gap-3">
-                <button
-                  onClick={() => setSelectedJobId(null)}
-                  className="w-fit text-[13px] font-semibold text-[var(--color-muted)] hover:text-[var(--color-ink)]"
-                >
-                  ← Back to Queue
-                </button>
-                <div className="rounded-2xl border border-[var(--color-ink)] shadow-sm">
-                  <JobDetail
-                    key={selectedJobId}
-                    job={jobs.find(j => j.id === selectedJobId) || jobs[0]}
-                    accent={accent}
-                    onAccent={onAccent}
-                    onAccept={handleAcceptTicket}
-                    onReject={handleRejectTicket}
-                    onEscalate={handleEscalateTicket}
-                    onResolve={handleResolveTicket}
-                    onAskAi={handleAskAi}
-                    assetsList={assetsList}
-                  />
+{hasJobs && selectedJobId && (
+              <div className="fixed inset-0 z-[100] bg-slate-100 overflow-hidden flex flex-col">
+                <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shrink-0 shadow-sm z-10">
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={() => setSelectedJobId(null)}
+                      className="p-2 -ml-2 rounded-full hover:bg-slate-100 transition-colors text-slate-500"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                    </button>
+                    <h2 className="text-xl font-bold text-slate-800">Working on Ticket T-{selectedJobId}</h2>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                  <div className="max-w-5xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[80vh]">
+                    <JobDetail
+                      key={selectedJobId}
+                      job={jobs.find(j => j.id === selectedJobId) || jobs[0]}
+                      accent={accent}
+                      onAccent={onAccent}
+                      onAccept={handleAcceptTicket}
+                      onReject={handleRejectTicket}
+                      onEscalate={handleEscalateTicket}
+                      onResolve={handleResolveTicket}
+                      onAskAi={handleAskAi}
+                      assetsList={assetsList}
+                    />
+                  </div>
                 </div>
               </div>
             )}

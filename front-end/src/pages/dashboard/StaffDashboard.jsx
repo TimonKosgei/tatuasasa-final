@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import './staff-dashboard.css';
 import { apiFetch } from '../../config/api';
 import { supabase } from '../../config/supabaseClient';
@@ -99,6 +99,7 @@ const StatusSteps = ({ status }) => {
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [applicationPopup, setApplicationPopup] = useState(null); // { status: 'approved' | 'rejected', name: '' }
@@ -114,6 +115,7 @@ export default function StaffDashboard() {
   const [building, setBuilding] = useState('');
   const [floor, setFloor] = useState('');
   const [room, setRoom] = useState('');
+  const [assetTag, setAssetTag] = useState('');
 
   async function loadTickets() {
     setLoading(true);
@@ -144,7 +146,16 @@ export default function StaffDashboard() {
   useEffect(() => {
     loadTickets();
     loadProfile();
-  }, []);
+
+    // Check URL parameters for pre-filling form from QR Code
+    const params = new URLSearchParams(location.search);
+    const assetParam = params.get('asset');
+    if (assetParam) {
+      setAssetTag(assetParam);
+      setShowForm(true);
+      setActiveTab('dashboard');
+    }
+  }, [location.search]);
 
   useEffect(() => {
     const theme = localStorage.getItem('staff_theme') || 'light';
@@ -239,6 +250,7 @@ export default function StaffDashboard() {
             location_building: building || null,
             location_floor: floor || null,
             location_room: room || null,
+            asset_tag: assetTag || null,
           }),
         },
         'Failed to submit ticket'
@@ -405,17 +417,18 @@ export default function StaffDashboard() {
                 <div className="table-responsive">
                   <table className="ticket-table">
                     <thead>
-                      <tr><th>Subject</th><th>Date</th><th>Status</th><th style={{ textAlign: 'center' }}>Actions</th></tr>
+                      <tr><th>Subject</th><th>Technician</th><th>Date</th><th>Status</th><th style={{ textAlign: 'center' }}>Actions</th></tr>
                     </thead>
                     <tbody>
                       {loading ? (
-                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>Loading your tickets…</td></tr>
+                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>Loading your tickets…</td></tr>
                       ) : tickets.length === 0 ? (
-                        <tr><td colSpan="3" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>You have no active tickets. Click "+ Raise New Ticket" to report an issue.</td></tr>
+                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '30px', color: 'var(--text-muted)' }}>You have no active tickets. Click "+ Raise New Ticket" to report an issue.</td></tr>
                       ) : (
                         tickets.map((ticket) => (
                           <tr key={ticket.id}>
                             <td>{ticket.title}</td>
+                            <td style={{ color: 'var(--text-muted)' }}>{ticket.technician_name ? `👤 ${ticket.technician_name}` : 'Not assigned'}</td>
                             <td>{new Date(ticket.created_at).toLocaleDateString()}</td>
                             <td>
                               <StatusSteps status={ticket.status} />
@@ -472,6 +485,13 @@ export default function StaffDashboard() {
                   <div className="form-group">
                     <label htmlFor="room">Room</label>
                     <input type="text" id="room" name="room" value={room} onChange={(e) => setRoom(e.target.value)} required />
+                  </div>
+                </div>
+                <div className="form-row">
+                  <div className="form-group" style={{ flex: '1 1 100%' }}>
+                    <label htmlFor="assetTag">Asset Tag (Optional)</label>
+                    <input type="text" id="assetTag" name="assetTag" value={assetTag} onChange={(e) => setAssetTag(e.target.value)} placeholder="e.g. AST-1001" />
+                    <small style={{ color: 'var(--text-muted)' }}>If this issue is related to specific hardware, enter its tag here or scan its QR code.</small>
                   </div>
                 </div>
                 <div className="form-group" style={{ marginBottom: '15px' }}>

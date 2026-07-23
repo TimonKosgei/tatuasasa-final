@@ -12,8 +12,13 @@ class AssetCreate(BaseModel):
     name: str
     category: str
     serial_number: Optional[str] = None
-    office_id: Optional[int] = None
-    assigned_to: Optional[str] = None
+    location_building: Optional[str] = None
+    location_floor: Optional[str] = None
+    location_room: Optional[str] = None
+    assigned_department: Optional[str] = None
+
+class BulkAssetCreate(BaseModel):
+    assets: List[AssetCreate]
 
 @router.get("", dependencies=[Depends(require_role("technician", "supervisor", "admin"))])
 def list_assets(search: Optional[str] = None):
@@ -97,3 +102,12 @@ def create_asset(payload: AssetCreate):
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to create asset")
     return res.data[0]
+
+@router.post("/bulk", dependencies=[Depends(require_role("supervisor", "admin"))])
+def create_assets_bulk(payload: BulkAssetCreate):
+    """Register multiple assets from bulk import."""
+    dumped = [p.model_dump(exclude_none=True) for p in payload.assets]
+    res = supabase_admin.table("assets").insert(dumped).execute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Failed to bulk insert assets")
+    return {"message": f"Successfully imported {len(res.data)} assets.", "count": len(res.data)}

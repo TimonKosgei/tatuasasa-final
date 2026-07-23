@@ -99,6 +99,7 @@ export default function App() {
           <Route path="/dashboard" element={<Navigate to="/dashboard/staff" replace />} />
           <Route path="/dashboard/admin" element={<AdminDashboard />} />
           <Route path="/dashboard/staff" element={<StaffDashboard />} />
+          <Route path="/report" element={<StaffDashboard />} />
           <Route path="/dashboard/supervisor" element={<SupervisorDashboard />} />
           <Route path="/dashboard/technician" element={<TechnicianDashboard />} />
           <Route path="/auth/forgot-password" element={<ForgotPassword />} />

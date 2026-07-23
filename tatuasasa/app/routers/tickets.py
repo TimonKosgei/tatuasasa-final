@@ -27,6 +27,7 @@ class TicketCreate(BaseModel):
     location_building: Optional[str] = None
     location_floor: Optional[str] = None
     location_room: Optional[str] = None
+    asset_tag: Optional[str] = None
 
     @field_validator("title")
     @classmethod
@@ -98,12 +99,22 @@ async def create_ticket(
         "status": "open"
     }
 
+    # Resolve asset_id if asset_tag is provided
+    if payload.asset_tag:
+        asset_res = supabase_admin.table("assets").select("id").eq("asset_tag", payload.asset_tag).execute()
+        if asset_res.data:
+            ticket_row["asset_id"] = asset_res.data[0]["id"]
+
     # Insert the ticket to generate its real ID
     insert_result = supabase.table("tickets").insert(ticket_row).execute()
     if not insert_result.data:
         raise HTTPException(status_code=500, detail="Failed to initialize ticket submission.")
     
     new_ticket = insert_result.data[0]
+
+    # Auto-update asset status to under_repair if an asset is linked
+    if new_ticket.get("asset_id"):
+        supabase_admin.table("assets").update({"status": "under_repair"}).eq("id", new_ticket["asset_id"]).execute()
 
     # Run matching engine to automatically assign the ticket and kick off the 3-minute timeout task
     await auto_assign_ticket_to_best_tech(
@@ -119,7 +130,7 @@ async def create_ticket(
 @router.get("/mine")
 def my_tickets(current_user=Depends(get_current_user)):
     result = (
-        supabase.table("tickets")
+        supabase_admin.table("tickets")
         .select("*, assignee:profiles!tickets_assigned_to_fkey(full_name)")
         .eq("submitted_by", current_user["id"])
         .order("created_at", desc=True)
@@ -136,7 +147,7 @@ def my_tickets(current_user=Depends(get_current_user)):
 @router.get("/assigned", dependencies=[Depends(require_role("technician"))])
 def assigned_tickets(current_user=Depends(get_current_user)):
     result = (
-        supabase.table("tickets")
+        supabase_admin.table("tickets")
         .select("*, staff:profiles!tickets_submitted_by_fkey(full_name)")
         .eq("assigned_to", current_user["id"])
         .order("priority", desc=True)
@@ -264,6 +275,11 @@ async def update_status(
 
         # Save updates
         supabase.table("tickets").update(update_data).eq("id", ticket_id).execute()
+
+        # Revert linked asset to active status if there is an asset
+        asset_id_to_update = update_data.get("asset_id") or ticket.data.get("asset_id")
+        if asset_id_to_update:
+            supabase_admin.table("assets").update({"status": "active"}).eq("id", asset_id_to_update).execute()
 
         # Send completion notification
         staff_id = ticket.data.get("submitted_by")
